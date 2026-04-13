@@ -4,7 +4,7 @@ A QGIS Processing provider and toolbox with spatial analysis tools to support de
 
 ## Features
 - A set of offline models and spatial algorithms for hydrology, solar radiation and water flow relevant to agroforestry planning.
-- Algorithms are available under the `algorithms/` package and exposed through the QGIS Processing toolbox.
+- Algorithms are loaded dynamically from the `algorithms/` folder structure and exposed through the QGIS Processing toolbox.
 
 ## Requirements
 - QGIS 3.16 or newer (adjustable in `metadata.txt`)
@@ -19,13 +19,21 @@ A QGIS Processing provider and toolbox with spatial analysis tools to support de
 
 ## Development
 - Algorithms live in the `algorithms/` package. Keep that folder intact when editing.
-- Exported QGIS model scripts can be used as a starting point, but review them before shipping.
-- Run the static validator before testing in QGIS:
+- Subfolders under `algorithms/` are discovered automatically and shown as Processing groups. You do not need to update provider code or add `__init__.py` files for new folders.
+- Convert a QGIS Model Designer export into a plugin-ready algorithm module from the QGIS Processing Toolbox:
 
-```bash
-python3 scripts/validate_algorithms.py
+```text
+Processing Toolbox -> Scripts -> Tools -> Convert Model To Plugin Algorithm
 ```
 
+- Point the tool at a `.model3` file or an exported Processing `.py` script and choose the destination Python file inside `algorithms/`.
+- The same converter can also be run from the command line:
+
+```bash
+python3 scripts/validate_algorithms.py path/to/model.model3 --subdir hydrology
+```
+
+- Review and smoke-test the generated algorithm in QGIS before shipping.
 - Use the import checklist in [`docs/ALGORITHM_IMPORT_CHECKLIST.md`](docs/ALGORITHM_IMPORT_CHECKLIST.md) when adding or updating algorithms.
 
 ## Support & Contribution

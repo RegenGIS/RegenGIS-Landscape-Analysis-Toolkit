@@ -1,9 +1,3 @@
-"""
-Model exported as python.
-Name : Swales positioning
-With QGIS : 34005
-"""
-
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -14,12 +8,12 @@ from qgis.core import QgsExpression
 import processing
 
 
-class SwalesPositioning(QgsProcessingAlgorithm):
+class HeightContours(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
-        self.addParameter(QgsProcessingParameterNumber('desired_height_distance_between_swales_m', 'Desired height distance between swales (m)', type=QgsProcessingParameterNumber.Double, defaultValue=None))
+        self.addParameter(QgsProcessingParameterNumber('desired_height_distance_between_contours_m', 'Desired height distance between contours (m)', type=QgsProcessingParameterNumber.Double, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('digital_terrain_model_dtm', 'Digital Terrain Model (DTM)', defaultValue=None))
-        self.addParameter(QgsProcessingParameterVectorDestination('Swales_contours', 'Swales_contours', type=QgsProcessing.TypeVectorLine, createByDefault=True, defaultValue=''))
+        self.addParameter(QgsProcessingParameterVectorDestination('Height_contours', 'Height_contours', type=QgsProcessing.TypeVectorLine, createByDefault=True, defaultValue=''))
 
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
@@ -68,20 +62,24 @@ class SwalesPositioning(QgsProcessingAlgorithm):
             'FIELD_NAME': 'ELEV',
             'IGNORE_NODATA': False,
             'INPUT': outputs['FillNodata']['OUTPUT'],
-            'INTERVAL': parameters['desired_height_distance_between_swales_m'],
+            'INTERVAL': parameters['desired_height_distance_between_contours_m'],
             'NODATA': None,
             'OFFSET': 0,
-            'OUTPUT': parameters['Swales_contours']
+            'OUTPUT': parameters['Height_contours']
         }
         outputs['Contour'] = processing.run('gdal:contour', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-        results['Swales_contours'] = outputs['Contour']['OUTPUT']
+        results['Height_contours'] = outputs['Contour']['OUTPUT']
         return results
 
     def name(self):
-        return 'swales_positioning'
-
+        return 'height_contours'
     def displayName(self):
-        return 'Swales positioning'
+        return 'Height Contours'
+    def group(self):
+        return 'Voedselbos'
+
+    def groupId(self):
+        return 'Voedselbos'
 
     def createInstance(self):
-        return SwalesPositioning()
+        return HeightContours()

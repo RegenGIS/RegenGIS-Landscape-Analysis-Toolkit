@@ -4,12 +4,10 @@
 
 from __future__ import annotations
 
-import importlib
+import importlib.util
 import inspect
 import logging
-import pkgutil
 from pathlib import Path
-from typing import Optional
 
 from PyQt5.QtGui import QIcon
 from qgis.core import QgsProcessingAlgorithm, QgsProcessingProvider
@@ -40,47 +38,47 @@ class ModelToolboxProvider(QgsProcessingProvider):
 
     def loadAlgorithms(self) -> None:
         """Register algorithms shipped with this plugin.
-        
-        Recursively discovers QgsProcessingAlgorithm subclasses in the algorithms
-        package and subfolders, using folder names as group names.
+
+        Recursively discovers QgsProcessingAlgorithm subclasses from Python files
+        under the algorithms folder, using folder names as group names.
         """
-        package = algorithms_pkg
-        self._load_algorithms_from_package(package, group_prefix="")
+        algorithms_dir = Path(algorithms_pkg.__file__).resolve().parent
+        for module_path in sorted(self._iter_algorithm_files(algorithms_dir)):
+            group_prefix = self._group_prefix_for_path(algorithms_dir, module_path)
+            self._load_algorithm_from_path(module_path, group_prefix)
 
-    def _load_algorithms_from_package(self, package, group_prefix: str = "") -> None:
-        """Recursively load algorithms from package and subfolders."""
-        # Load algorithms directly in this package
-        for finder, name, ispkg in pkgutil.iter_modules(package.__path__):
-            if ispkg:
-                # Skip subpackages here; they'll be handled separately
+    def _iter_algorithm_files(self, algorithms_dir: Path):
+        """Yield candidate algorithm files from disk."""
+        for path in algorithms_dir.rglob("*.py"):
+            if path.name == "__init__.py":
                 continue
-
-            module_name = f"{package.__name__}.{name}"
-            self._load_algorithm_from_module(module_name, group_prefix)
-
-        # Recursively load from subpackages (subfolders)
-        for finder, name, ispkg in pkgutil.iter_modules(package.__path__):
-            if not ispkg:
+            if "__pycache__" in path.parts:
                 continue
-
-            subpackage_name = f"{package.__name__}.{name}"
-            try:
-                subpackage = importlib.import_module(subpackage_name)
-                # Use folder name as group prefix
-                new_group = name.replace("_", " ").title()
-                if group_prefix:
-                    new_group = f"{group_prefix}/{new_group}"
-                self._load_algorithms_from_package(subpackage, new_group)
-            except Exception as e:
-                logger.warning(f"Failed to import subpackage '{subpackage_name}': {e}")
+            if any(part.startswith(".") for part in path.parts):
                 continue
+            yield path
 
-    def _load_algorithm_from_module(self, module_name: str, group_prefix: str = "") -> None:
-        """Load and register algorithms from a single module."""
+    def _group_prefix_for_path(self, algorithms_dir: Path, module_path: Path) -> str:
+        """Return the display group derived from the module's relative folder path."""
+        relative_parent = module_path.relative_to(algorithms_dir).parent
+        if str(relative_parent) == ".":
+            return ""
+
+        return "/".join(part.replace("_", " ").title() for part in relative_parent.parts)
+
+    def _load_algorithm_from_path(self, module_path: Path, group_prefix: str = "") -> None:
+        """Load and register algorithms from a single Python file."""
+        relative_module = module_path.relative_to(Path(__file__).resolve().parent)
+        module_name = ".".join((__package__,) + relative_module.with_suffix("").parts)
+
         try:
-            module = importlib.import_module(module_name)
+            spec = importlib.util.spec_from_file_location(module_name, module_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Could not create import spec for '{module_path}'.")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
         except Exception as e:
-            logger.warning(f"Failed to import algorithm module '{module_name}': {e}")
+            logger.warning(f"Failed to import algorithm module '{module_path}': {e}")
             return
 
         for _, obj in inspect.getmembers(module, inspect.isclass):
