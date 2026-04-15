@@ -1,4 +1,4 @@
-# RegenGIS Analysis Toolbox
+# RegenGIS Landscape Analysis Toolkit
 
 A QGIS Processing provider and toolbox with spatial analysis tools to support decision making when designing regenerative landscapes, such as food forests, agroforestry or permaculture systems.
 
