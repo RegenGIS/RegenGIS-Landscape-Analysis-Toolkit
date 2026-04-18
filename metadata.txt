@@ -1,8 +1,3 @@
-# This file contains metadata for your plugin.
-
-# This file should be included when you package your plugin.
-# Mandatory items:
-
 [general]
 name=RegenGIS Landscape Analysis Toolkit - for Regenerative Land Design
 qgisMinimumVersion=3.16
@@ -15,23 +10,23 @@ email=info@regengis.com
 about=This plugin gives access to spatial analysis tools that support decision making in designing regenerative landscapes, such as agroforestry systems and food forests.
 
 tracker=https://www.regengis.com
-repository=https://www.regengis.com
+repository=https://github.com/RegenGIS/regengis_processing_plugin
 # End of mandatory metadata
 
 # Recommended items:
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-# changelog=
+# changelog=CHANGELOG.md
 
 # Tags are comma separated with spaces allowed
-tags=python
+tags=landscape, regenerative, agroforestry, food forests, permaculture, decision support, landscape design, analysis, hydrology, microclimate, drainage, height contours, drainage, water flow, TWI, solar radiation, sun hours
 
 homepage=https://www.regengis.com
 category=Analysis, regenerative landscape design
 icon=icon.png
 # experimental flag
-experimental=True
+experimental=False
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
