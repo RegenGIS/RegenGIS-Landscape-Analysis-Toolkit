@@ -17,27 +17,8 @@ A QGIS Processing provider and toolbox with spatial analysis tools to support de
 ## Usage
 - After installing, open the Processing Toolbox and search for "Agroforestry" or the individual algorithm names in the `Agroforestry Toolbox` provider.
 
-## Development
-- Algorithms live in the `algorithms/` package. Keep that folder intact when editing.
-- Subfolders under `algorithms/` are discovered automatically and shown as Processing groups. You do not need to update provider code or add `__init__.py` files for new folders.
-- Convert a QGIS Model Designer export into a plugin-ready algorithm module from the QGIS Processing Toolbox:
-
-```text
-Processing Toolbox -> Scripts -> Tools -> Convert Model To Plugin Algorithm
-```
-
-- Point the tool at a `.model3` file or an exported Processing `.py` script and choose the destination Python file inside `algorithms/`.
-- The same converter can also be run from the command line:
-
-```bash
-python3 scripts/validate_algorithms.py path/to/model.model3 --subdir hydrology
-```
-
-- Review and smoke-test the generated algorithm in QGIS before shipping.
-- Use the import checklist in [`docs/ALGORITHM_IMPORT_CHECKLIST.md`](docs/ALGORITHM_IMPORT_CHECKLIST.md) when adding or updating algorithms.
-
 ## Support & Contribution
-- Tracker / Website: https://www.regengis.com
+- Website: https://www.regengis.com
 - Email: info@regengis.com
 
 ## License

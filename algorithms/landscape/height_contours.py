@@ -1,3 +1,10 @@
+"""
+Generated from height_contours.py for the RegenGIS processing plugin.
+
+The conversion keeps the exported model logic intact while normalizing
+the algorithm id, display name and class boilerplate for plugin use.
+"""
+
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback

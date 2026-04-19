@@ -8,8 +8,8 @@ author=RegenGIS.com
 email=info@regengis.com
 
 about=This plugin gives access to spatial analysis tools that support decision making in designing regenerative landscapes, such as agroforestry systems and food forests.
-
-tracker=https://www.regengis.com
+tracker=https://github.com/RegenGIS/regengis_processing_plugin/issues
+homepage=https://www.regengis.com
 repository=https://github.com/RegenGIS/regengis_processing_plugin
 # End of mandatory metadata
 

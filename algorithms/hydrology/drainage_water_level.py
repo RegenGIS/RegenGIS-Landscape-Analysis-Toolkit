@@ -1,8 +1,10 @@
 """
-Model exported as python.
-Name : Drainage based on single water level
-With QGIS : 34005
+Generated from drainage_water_level.py for the RegenGIS processing plugin.
+
+The conversion keeps the exported model logic intact while normalizing
+the algorithm id, display name and class boilerplate for plugin use.
 """
+
 
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
@@ -85,12 +87,13 @@ class DrainageBasedOnSingleWaterLevel(QgsProcessingAlgorithm):
 
     def name(self):
         return 'drainage_based_on_single_water_level'
-
     def displayName(self):
         return 'Drainage based on single water level'
-
     def shortHelpString(self):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+
+    def createInstance(self):
+        return DrainageBasedOnSingleWaterLevel()
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 p, li { white-space: pre-wrap; }
 </style></head><body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;">

@@ -1,8 +1,10 @@
 """
-Model exported as python.
-Name : Water Flow
-With QGIS : 34005
+Generated from water_flow.py for the RegenGIS processing plugin.
+
+The conversion keeps the exported model logic intact while normalizing
+the algorithm id, display name and class boilerplate for plugin use.
 """
+
 
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
@@ -101,9 +103,7 @@ class WaterFlow(QgsProcessingAlgorithm):
 
     def name(self):
         return 'water_flow'
-
     def displayName(self):
         return 'Water Flow'
-
     def createInstance(self):
         return WaterFlow()

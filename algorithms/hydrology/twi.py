@@ -1,8 +1,10 @@
 """
-Model exported as python.
-Name : Topographic Wetness Index
-With QGIS : 34005
+Generated from twi.py for the RegenGIS processing plugin.
+
+The conversion keeps the exported model logic intact while normalizing
+the algorithm id, display name and class boilerplate for plugin use.
 """
+
 
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
@@ -40,9 +42,7 @@ class TopographicWetnessIndex(QgsProcessingAlgorithm):
 
     def name(self):
         return 'topographic_wetness_index'
-
     def displayName(self):
         return 'Topographic Wetness Index'
-
     def createInstance(self):
         return TopographicWetnessIndex()
