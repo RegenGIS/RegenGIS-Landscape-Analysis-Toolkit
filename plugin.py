@@ -8,6 +8,8 @@ from typing import Optional
 
 from qgis.core import QgsApplication
 from qgis.gui import QgisInterface
+from .community_dialog import CommunityDialog
+from PyQt5.QtCore import QSettings
 
 from .processing_provider import ModelToolboxProvider
 
@@ -19,8 +21,26 @@ class ModelToolboxPlugin:
         self.iface: QgisInterface = iface
         self._provider: Optional[ModelToolboxProvider] = None
 
+    @staticmethod
+    def show_community_dialog() -> None:
+        """Show the community dialog popup. Useful for testing."""
+        dialog = CommunityDialog()
+        dialog.exec_()
+        QSettings().setValue("regengis/community_dialog_dismissed", True)
+
+    @staticmethod
+    def reset_community_dialog() -> None:
+        """Reset the community dialog flag so it shows again on next plugin load."""
+        QSettings().remove("regengis/community_dialog_dismissed")
+
     def initGui(self) -> None:  # noqa: N802 (QGIS API)
         """Called by QGIS when the plugin is enabled."""
+        settings = QSettings()
+        if not settings.value("regengis/community_dialog_dismissed", False, type=bool):
+            dialog = CommunityDialog()
+            dialog.exec_()
+            settings.setValue("regengis/community_dialog_dismissed", True)
+
         self._provider = ModelToolboxProvider()
         QgsApplication.processingRegistry().addProvider(self._provider)
 
