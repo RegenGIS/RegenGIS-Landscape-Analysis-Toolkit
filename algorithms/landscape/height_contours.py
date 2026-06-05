@@ -1,9 +1,10 @@
 """
-Generated from height_contours.py for the RegenGIS processing plugin.
+Generated from a QGIS-model for the RegenGIS processing plugin.
 
 The conversion keeps the exported model logic intact while normalizing
 the algorithm id, display name and class boilerplate for plugin use.
 """
+
 
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
@@ -87,6 +88,24 @@ class HeightContours(QgsProcessingAlgorithm):
 
     def groupId(self):
         return 'Voedselbos'
+
+    def shortHelpString(self):
+        return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+
+    def createInstance(self):
+        return HeightContours()
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+</style></head><body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;">
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;">A </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">Digital Terrain Model (DTM)</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> is a grid-based map in which each cell stores the height of the bare ground at that location. It represents the terrain itself, without buildings or vegetation, and shows the shape of hills, slopes, ridges, valleys, and flat areas.</span></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Helvetica Neue'; color:#000000;"><br /></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">Height contours</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> are lines that connect points of equal elevation. They are calculated from a DTM to make the terrain easier to read and interpret on a map. In </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">GDAL</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, the </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">Contour</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> tool creates these lines based on the elevation values in the DTM.</span></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;"><br />The input includes:  </span></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;">1. a </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">DTM</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, and  </span></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;">2. the </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">desired height distance between contours (m)</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, also called the contour interval.</span></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Helvetica Neue'; color:#000000;"><br /></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;">For example, if the contour interval is </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">1 meter</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, a contour line is created every 1 meter of elevation difference. If it is </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">5 meters</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, the lines are spaced every 5 meters in height.</span></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;"><br />Height contours are useful for understanding </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">terrain shape</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">slope</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">elevation differences</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, and </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">landform patterns</span><span style=" font-family:'Helvetica Neue'; color:#000000;">. They are commonly used in mapping, landscape design, hydrology, site planning, and restoration work. A smaller contour interval gives more detail; a larger interval gives a simpler, less crowded map.</span> </p></body></html></p>
+<br></body></html>"""
 
     def createInstance(self):
         return HeightContours()

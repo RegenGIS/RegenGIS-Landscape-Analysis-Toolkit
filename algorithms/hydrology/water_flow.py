@@ -1,5 +1,5 @@
 """
-Generated from water_flow.py for the RegenGIS processing plugin.
+Generated from a QGIS-model for the RegenGIS processing plugin.
 
 The conversion keeps the exported model logic intact while normalizing
 the algorithm id, display name and class boilerplate for plugin use.
@@ -77,7 +77,8 @@ class WaterFlow(QgsProcessingAlgorithm):
             'barrier': None,
             'bound': None,
             'elevation': outputs['FillNodata']['OUTPUT'],
-            'flowline': QgsProcessing.TEMPORARY_OUTPUT,
+            'flowlength': '././flow_path_length',
+            'flowline': '././flow_line',
             'skip': None,
             'flowaccumulation': QgsProcessing.TEMPORARY_OUTPUT,
             'flowlength': QgsProcessing.TEMPORARY_OUTPUT
@@ -105,5 +106,28 @@ class WaterFlow(QgsProcessingAlgorithm):
         return 'water_flow'
     def displayName(self):
         return 'Water Flow'
+    def group(self):
+        return 'Voedselbos'
+
+    def groupId(self):
+        return 'Voedselbos'
+
+    def shortHelpString(self):
+        return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+
+    def createInstance(self):
+        return WaterFlow()
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+</style></head><body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;">
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;">A </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">Digital Terrain Model (DTM)</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> is a grid-based map in which each cell stores the height of the bare ground surface. It represents the terrain itself, without buildings or vegetation, and shows hills, slopes, valleys, and flat areas.</span></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Helvetica Neue'; color:#000000;"><br /></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">Water Flow</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> analysis uses a DTM to estimate how water is likely to move across the land surface. It creates a </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">water flow map</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> by modelling the direction and accumulation of overland flow based on terrain shape.</span></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Helvetica Neue'; color:#000000;"><br /></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;">The input is a </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">DTM. </span><span style=" font-family:'Helvetica Neue'; color:#000000;">The output is a </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">water flow map</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, showing the likely flow paths and areas where water may concentrate</span></p>
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'Helvetica Neue'; color:#000000;"><br /></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;">This is useful for identifying </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">drainage patterns</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">runoff routes</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">erosion risk</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, and places where water may collect or move more strongly across the landscape. It can support work in </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">hydrology</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">landscape design</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">restoration</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">site planning</span><span style=" font-family:'Helvetica Neue'; color:#000000;">, and </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">water management</span><span style=" font-family:'Helvetica Neue'; color:#000000;">.</span></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;"><br />A water flow map is not a direct measurement of actual water movement in the field. Instead, it is a terrain-based model that shows how water is expected to flow based on the shape of the land.</span> </p></body></html></p>
+<br></body></html>"""
+
     def createInstance(self):
         return WaterFlow()
