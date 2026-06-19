@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.util
 import inspect
 import logging
+import sys
 from pathlib import Path
 
 from PyQt5.QtGui import QIcon
@@ -76,7 +77,12 @@ class ModelToolboxProvider(QgsProcessingProvider):
             if spec is None or spec.loader is None:
                 raise ImportError(f"Could not create import spec for '{module_path}'.")
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            sys.modules[module_name] = module
+            try:
+                spec.loader.exec_module(module)
+            except Exception:
+                sys.modules.pop(module_name, None)
+                raise
         except Exception as e:
             logger.warning(f"Failed to import algorithm module '{module_path}': {e}")
             return

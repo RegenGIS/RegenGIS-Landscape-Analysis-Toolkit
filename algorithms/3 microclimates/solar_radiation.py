@@ -21,7 +21,7 @@ class SolarRadiation(QgsProcessingAlgorithm):
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterDateTime('date', 'Date', type=QgsProcessingParameterDateTime.Date, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('digital_surface_model_dsm_or_digital_terrain_model_dtm', 'Digital Surface Model (DSM) or Digital Terrain Model (DTM)', defaultValue=None))
-        self.addParameter(QgsProcessingParameterRasterDestination('Shade_intensity', 'Shade_intensity', optional=True, createByDefault=True, defaultValue=''))
+        self.addParameter(QgsProcessingParameterRasterDestination('Shade_intensity', 'Shade_intensity', optional=True, createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Solar_hours', 'Solar_hours', createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Aspect', 'Aspect', createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Slope', 'Slope', createByDefault=True, defaultValue=None))
@@ -140,8 +140,6 @@ class SolarRadiation(QgsProcessingAlgorithm):
     def shortHelpString(self):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 
-    def createInstance(self):
-        return SolarRadiation()
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;">
 <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" font-family:'Helvetica Neue'; color:#000000;">A </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">Digital Terrain Model (DTM)</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> or </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">Digital Surface Model (DSM)</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> is a grid-based map in which each cell stores elevation. A </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">DTM</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> represents the bare ground surface, while a </span><span style=" font-family:'Helvetica Neue'; font-weight:600; color:#000000;">DSM</span><span style=" font-family:'Helvetica Neue'; color:#000000;"> also includes features on top of the ground, such as trees and buildings. For solar analysis, a DSM is used when shading from existing vegetation and structures should be included; a DTM is used when only the terrain is considered.</span></p>

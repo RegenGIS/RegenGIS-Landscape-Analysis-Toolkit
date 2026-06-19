@@ -13,6 +13,17 @@ from PyQt5.QtCore import QSettings
 
 from .processing_provider import ModelToolboxProvider
 
+# TEMPORARY WORKAROUND for a misconfiguration in some installations of QGIS
+# where the PROJ_LIB path in GDAL is missing or misconfigured.
+# This causes GDAL processes to not be able to find the proj.db 
+# and generating faulty projections
+import os
+try:
+    os.environ["PROJ_LIB"]
+except:
+    gdalpath = os.environ["GDAL_DATA"]
+    os.environ["PROJ_LIB"]=gdalpath.replace("gdal", "proj")
+
 
 class ModelToolboxPlugin:
     """Main QGIS plugin class that registers/unregisters the Processing provider."""
