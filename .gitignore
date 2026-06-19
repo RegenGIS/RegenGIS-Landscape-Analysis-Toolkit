@@ -1,5 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtualenvs / packaging
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# IDE / editor
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local-only state (not part of the plugin)
+.hermes/
+.hermes/**
+.autocrs-cache/
+.autocrs-cache/**
+
+# Release artifacts (kept out of source)
+*.zip
+*.tar.gz
+*.tgz
+
+# Repo metadata
+.git/
+
+# Test/scratch folders
 test/
-scripts/
-docs/
 algorithms/TEST/
