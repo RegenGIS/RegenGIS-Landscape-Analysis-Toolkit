@@ -6,10 +6,13 @@ description=This plugin gives access to spatial analysis tools that support Rege
 version=0.1
 author=RegenGIS.com
 email=info@regengis.com
+license=MPL-2.0
 
-about=This plugin gives access to spatial analysis tools that support decision making in designing regenerative landscapes, such as agroforestry systems and food forests.
+about=This plugin provides spatial analysis tools for regenerative landscape design, including hydrology, microclimate and CRS preparation workflows.
+ Some algorithms require the QGIS GRASS Processing Provider and may not run until that provider is installed and available.
+ GRASS support depends on the operating system, QGIS version and installation package. See the README for platform guidance and installation notes.
 tracker=https://github.com/RegenGIS/regengis_processing_plugin/issues
-homepage=https://www.regengis.com/regengis_qgis_plugin_standard_for_regenerative_landscape_analysis
+homepage=https://github.com/RegenGIS/regengis_processing_plugin#readme
 repository=https://github.com/RegenGIS/regengis_processing_plugin
 
 # End of mandatory metadata

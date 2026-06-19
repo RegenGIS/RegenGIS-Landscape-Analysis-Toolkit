@@ -35,8 +35,9 @@ get_field() {
 }
 
 VERSION=$(get_field version)
-# Plugin folder name inside the zip. Keep in sync with the GitHub repo name.
-PLUGIN_DIR="RegenGIS-Landscape-Analysis-Toolkit"
+# Plugin folder name inside the zip. Use the repository/package folder name so
+# QGIS sees a normal Python package root and the published source matches GitHub.
+PLUGIN_DIR="$(basename "$ROOT")"
 
 OUT_DIR="$ROOT/dist"
 OUT="$OUT_DIR/${PLUGIN_DIR}-${VERSION}.zip"
@@ -73,12 +74,15 @@ rsync -a \
   --exclude='scripts/**' \
   --exclude='docs' \
   --exclude='docs/**' \
+  --exclude='decode_images.py' \
   --exclude='test' \
   --exclude='test/**' \
   --exclude='tests' \
   --exclude='tests/**' \
   --exclude='dist' \
   --exclude='dist/**' \
+  --exclude='screenshot.png' \
+  --exclude='screenshot.png.b64' \
   --exclude='venv' \
   --exclude='venv/**' \
   --exclude='.venv' \
@@ -96,7 +100,26 @@ rsync -a \
 
 # Build the zip from inside the staging dir so its root is PLUGIN_DIR/.
 mkdir -p "$OUT_DIR"
-( cd "$STAGE" && zip -r -q "$OUT" "$PLUGIN_DIR" )
+if command -v zip >/dev/null 2>&1; then
+  ( cd "$STAGE" && zip -r -q "$OUT" "$PLUGIN_DIR" )
+else
+  python3 - <<'PY' "$STAGE" "$OUT" "$PLUGIN_DIR"
+from pathlib import Path
+import sys
+import zipfile
+
+stage = Path(sys.argv[1])
+out = Path(sys.argv[2])
+plugin_dir = sys.argv[3]
+root = stage / plugin_dir
+
+with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    zf.write(root, plugin_dir + "/")
+    for path in sorted(root.rglob("*")):
+        arcname = f"{plugin_dir}/{path.relative_to(root).as_posix()}"
+        zf.write(path, arcname)
+PY
+fi
 
 # macOS and Linux stat differ; pick the right flag.
 if SIZE=$(stat -f%z "$OUT" 2>/dev/null); then :; else SIZE=$(stat -c%s "$OUT"); fi
@@ -117,6 +140,25 @@ echo "SHA-256: $SHA"
 
 echo
 echo "Sanity check (should print nothing below this line):"
-unzip -l "$OUT" | grep -E '__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|scripts/|tests/|test/|__MACOSX/' \
-  && { echo "FAIL: zip contains excluded entries" >&2; exit 1; } \
-  || echo "OK: no excluded entries found"
+if command -v unzip >/dev/null 2>&1; then
+  unzip -l "$OUT" | grep -E '__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|scripts/|tests/|test/|__MACOSX/' \
+    && { echo "FAIL: zip contains excluded entries" >&2; exit 1; } \
+    || echo "OK: no excluded entries found"
+else
+  python3 - <<'PY' "$OUT"
+from pathlib import Path
+import re
+import sys
+import zipfile
+
+zip_path = Path(sys.argv[1])
+pattern = re.compile(r'__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|scripts/|tests/|test/|__MACOSX/')
+with zipfile.ZipFile(zip_path) as zf:
+    hits = [name for name in zf.namelist() if pattern.search(name)]
+if hits:
+    for hit in hits:
+        print(hit)
+    raise SystemExit("FAIL: zip contains excluded entries")
+print("OK: no excluded entries found")
+PY
+fi

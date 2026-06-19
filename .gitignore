@@ -33,6 +33,7 @@ Thumbs.db
 *.zip
 *.tar.gz
 *.tgz
+*.b64
 
 # Repo metadata
 .git/

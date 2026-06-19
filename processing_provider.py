@@ -18,6 +18,7 @@ from qgis.core import QgsProcessingAlgorithm, QgsProcessingProvider
 from . import algorithms as algorithms_pkg
 
 logger = logging.getLogger(__name__)
+PLUGIN_ICON_PATH = Path(__file__).parent / "icon.png"
 
 
 @dataclass(frozen=True)
@@ -49,10 +50,15 @@ class ModelToolboxProvider(QgsProcessingProvider):
 
     def icon(self) -> QIcon:
         """Return the provider icon from icon.png if available."""
-        icon_path = Path(__file__).parent / "icon.png"
-        if icon_path.exists():
-            return QIcon(str(icon_path))
+        if PLUGIN_ICON_PATH.exists():
+            return QIcon(str(PLUGIN_ICON_PATH))
         return super().icon()
+
+    def _algorithm_icon(self) -> QIcon | None:
+        """Return the shared plugin icon for individual processing tools."""
+        if not PLUGIN_ICON_PATH.exists():
+            return None
+        return QIcon(str(PLUGIN_ICON_PATH))
 
     def loadAlgorithms(self) -> None:
         """Register algorithms shipped with this plugin.
@@ -159,6 +165,9 @@ class ModelToolboxProvider(QgsProcessingProvider):
                     if group_prefix:
                         alg.group = lambda: group_prefix
                         alg.groupId = lambda: group_prefix.lower().replace(" ", "_").replace("/", "_")
+                    shared_icon = self._algorithm_icon()
+                    if shared_icon is not None:
+                        alg.icon = lambda shared_icon=shared_icon: shared_icon
                     self.addAlgorithm(alg)
                     logger.debug("Registered algorithm: %s (group: %s)", alg.displayName(), alg.group())
             except Exception as exc:

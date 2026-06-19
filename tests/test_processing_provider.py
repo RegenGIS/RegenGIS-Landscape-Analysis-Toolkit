@@ -7,6 +7,7 @@ import tempfile
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_PARENT = PLUGIN_ROOT.parent
@@ -20,6 +21,9 @@ class _DummyProcessingAlgorithm:
 
     def group(self):
         return getattr(self, "_group_name", "")
+
+    def icon(self):
+        return None
 
 
 class _DummyProcessingProvider:
@@ -156,6 +160,23 @@ class ProcessingProviderDiagnosticsTests(unittest.TestCase):
         issues = self.provider.load_issues()
         issues.append("mutated")
         self.assertEqual(len(self.provider.load_issues()), 1)
+
+    def test_loaded_algorithms_receive_shared_plugin_icon(self):
+        module_path = self._write_module(
+            "algorithms/with_icon.py",
+            "from qgis.core import QgsProcessingAlgorithm\n"
+            "class IconAlgorithm(QgsProcessingAlgorithm):\n"
+            "    pass\n",
+        )
+
+        with mock.patch.object(self.provider_module, "PLUGIN_ICON_PATH", PLUGIN_ROOT / "icon.png"):
+            self.provider._load_algorithm_from_path(module_path)
+
+        self.assertEqual(len(self.provider.added_algorithms), 1)
+        algorithm = self.provider.added_algorithms[0]
+        icon = algorithm.icon()
+        self.assertIsInstance(icon, _DummyQIcon)
+        self.assertEqual(icon.args, (str(PLUGIN_ROOT / "icon.png"),))
 
 
 if __name__ == "__main__":
