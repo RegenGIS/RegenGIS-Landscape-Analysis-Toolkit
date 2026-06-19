@@ -5,6 +5,10 @@ The conversion keeps the exported model logic intact while normalizing
 the algorithm id, display name and class boilerplate for plugin use.
 """
 
+from __future__ import annotations
+
+from datetime import date, datetime
+
 
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
@@ -14,6 +18,33 @@ from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
 from qgis.core import QgsExpression
 import processing
+
+
+def _coerce_python_date(value) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+
+    to_py_datetime = getattr(value, "toPyDateTime", None)
+    if callable(to_py_datetime):
+        py_datetime = to_py_datetime()
+        if isinstance(py_datetime, datetime):
+            return py_datetime.date()
+        if isinstance(py_datetime, date):
+            return py_datetime
+
+    to_py_date = getattr(value, "toPyDate", None)
+    if callable(to_py_date):
+        py_date = to_py_date()
+        if isinstance(py_date, date):
+            return py_date
+
+    raise TypeError(f"Unsupported date value for solar analysis: {value!r}")
+
+
+def _day_of_year(value) -> int:
+    return _coerce_python_date(value).timetuple().tm_yday
 
 
 class SolarRadiation(QgsProcessingAlgorithm):
@@ -32,6 +63,8 @@ class SolarRadiation(QgsProcessingAlgorithm):
         feedback = QgsProcessingMultiStepFeedback(5, model_feedback)
         results = {}
         outputs = {}
+        analysis_date = self.parameterAsDateTime(parameters, 'date', context)
+        analysis_day = _day_of_year(analysis_date)
 
         # Raster calculator
         alg_params = {
@@ -106,7 +139,7 @@ class SolarRadiation(QgsProcessingAlgorithm):
             'civil_time': None,
             'coeff_bh': None,
             'coeff_dh': None,
-            'day': QgsExpression("day(age(to_string(@date), to_string(year(@date)) + '-01-01'))").evaluate(),
+            'day': analysis_day,
             'declination': None,
             'distance_step': 1,
             'elevation': outputs['FillNodata']['OUTPUT'],

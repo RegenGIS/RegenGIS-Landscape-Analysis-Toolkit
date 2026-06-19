@@ -6,7 +6,11 @@ from qgis.core import QgsProcessingOutputNumber
 from qgis.core import QgsProcessingOutputString
 from qgis.core import QgsProcessingParameterRasterLayer
 
-from regengis_processing_plugin.autocrs import recommend_analysis_crs_for_layer
+
+def _recommend_analysis_crs_for_layer(layer, feedback=None):
+    from regengis_processing_plugin.autocrs.prepare import recommend_analysis_crs_for_layer
+
+    return recommend_analysis_crs_for_layer(layer, feedback=feedback)
 
 
 class RecommendAnalysisCrs(QgsProcessingAlgorithm):
@@ -38,7 +42,7 @@ class RecommendAnalysisCrs(QgsProcessingAlgorithm):
         if layer is None:
             raise ValueError("Input raster layer is required.")
 
-        recommendation = recommend_analysis_crs_for_layer(layer, feedback=feedback)
+        recommendation = _recommend_analysis_crs_for_layer(layer, feedback=feedback)
 
         if feedback is not None and hasattr(feedback, "pushInfo"):
             feedback.pushInfo(

@@ -40,12 +40,14 @@ class CommunityDialog(QDialog):
         main_layout.addWidget(banner)
 
         content_widget = QLabel(
-            "Share insights with other Regenerative Designers and stay updated about:\n\n"
-            "• The RegenGIS QGIS plugin\n"
-            "• New learning resources\n"
-            "• Online courses about GIS in regenerative design\n"
-            "• Community discussions and experiments\n\n"
-            "Join the club!"
+            "Thank you for installing the RegenGIS plugin.\n\n"
+            "We’re excited to support your work in regenerative landscape design.\n\n"
+            "Join the RegenGIS community to:\n\n"
+            "• stay informed about new plugin features and updates\n"
+            "• discover new learning resources and practical workflows\n"
+            "• hear about upcoming courses and training opportunities\n"
+            "• connect with others exploring GIS for regenerative design\n\n"
+            "Would you like to join the community?"
         )
         content_widget.setStyleSheet(
             "background-color: #FFFFFF; "
@@ -62,7 +64,7 @@ class CommunityDialog(QDialog):
         buttons_layout = QHBoxLayout(buttons_widget)
         buttons_layout.setSpacing(15)
 
-        join_btn = QPushButton("Yes I'm in!")
+        join_btn = QPushButton("Yes, I’d love to join")
         join_btn.setStyleSheet("""
             QPushButton {
                 background-color: #158C78;

@@ -18,6 +18,18 @@ class AutoCrsHeuristicsTests(unittest.TestCase):
         self.assertEqual(choice.identifier, "EPSG:28992")
         self.assertEqual(choice.strategy, "national_grid")
 
+    def test_southern_netherlands_still_prefers_rd_new_over_belgian_grid(self):
+        extent = Extent(5.0, 51.0, 5.8, 51.4)
+        choice = choose_metric_crs(extent)
+        self.assertEqual(choice.identifier, "EPSG:28992")
+        self.assertEqual(choice.strategy, "national_grid")
+
+    def test_central_belgium_prefers_belgian_national_grid(self):
+        extent = Extent(4.0, 50.7, 4.8, 51.1)
+        choice = choose_metric_crs(extent)
+        self.assertEqual(choice.identifier, "EPSG:3812")
+        self.assertEqual(choice.strategy, "national_grid")
+
     def test_utm_zone_selection_uses_extent_center(self):
         extent = Extent(6.1, 46.0, 11.8, 47.0)
         choice = choose_metric_crs(extent)

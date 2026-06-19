@@ -209,6 +209,12 @@ def _extent_within_bbox(extent: Extent, west: float, south: float, east: float, 
     )
 
 
+def _bbox_center_distance(extent: Extent, spec: NationalGridSpec) -> float:
+    spec_center_lon = (spec.west + spec.east) / 2.0
+    spec_center_lat = (spec.south + spec.north) / 2.0
+    return math.hypot(extent.center_lon - spec_center_lon, extent.center_lat - spec_center_lat)
+
+
 def _best_matching_national_grid(extent: Extent) -> NationalGridSpec | None:
     candidates = [
         spec for spec in NATIONAL_GRID_SPECS
@@ -216,7 +222,7 @@ def _best_matching_national_grid(extent: Extent) -> NationalGridSpec | None:
     ]
     if not candidates:
         return None
-    return min(candidates, key=lambda spec: (spec.bbox_area, abs(extent.center_lon - ((spec.west + spec.east) / 2.0))))
+    return min(candidates, key=lambda spec: (_bbox_center_distance(extent, spec), spec.bbox_area, spec.identifier))
 
 
 def choose_metric_crs(extent: Extent) -> MetricCrsChoice:

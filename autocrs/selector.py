@@ -42,6 +42,7 @@ class CatalogCandidate:
     deprecated_rank: int
     area_size: float
     specificity_rank: int
+    preferred_national_grid_rank: int
     distortion_ppm: float
     is_utm_or_ups: bool
 
@@ -51,6 +52,7 @@ class CatalogCandidate:
             self.coverage_rank,
             self.deprecated_rank,
             self.specificity_rank,
+            self.preferred_national_grid_rank,
             self.area_size,
             self.distortion_ppm,
             self.is_utm_or_ups,
@@ -81,6 +83,7 @@ class CatalogPreCandidate:
     deprecated_rank: int
     area_size: float
     specificity_rank: int
+    preferred_national_grid_rank: int
     is_utm_or_ups: bool
     coverage_rank: int
 
@@ -292,6 +295,13 @@ def _specificity_rank(description: str) -> int:
     return 1
 
 
+def _preferred_national_grid_authid(extent: Extent) -> str | None:
+    choice = choose_metric_crs(extent)
+    if choice.strategy != "national_grid":
+        return None
+    return choice.identifier
+
+
 def _require_qgis(function_name: str) -> None:
     if QgsCoordinateReferenceSystem is None or QgsCoordinateTransform is None or QgsProject is None:
         raise RuntimeError(f"{function_name} requires a QGIS runtime with PyQGIS available.")
@@ -462,13 +472,20 @@ def _catalog_index(feedback=None) -> list[CatalogIndexEntry]:
     return entries
 
 
-def _catalog_pre_candidate(entry: CatalogIndexEntry, helper_extent: Extent) -> CatalogPreCandidate | None:
+def _catalog_pre_candidate(
+    entry: CatalogIndexEntry,
+    helper_extent: Extent,
+    preferred_national_grid_authid: str | None = None,
+) -> CatalogPreCandidate | None:
     coverage_rank = _extent_matches_bounds(
         helper_extent,
         _BoundsProxy(entry.west, entry.south, entry.east, entry.north),
     )
     if coverage_rank is None:
         return None
+    preferred_rank = 1
+    if preferred_national_grid_authid is not None and entry.authid == preferred_national_grid_authid:
+        preferred_rank = 0
     return CatalogPreCandidate(
         srs_id=entry.srs_id,
         authid=entry.authid,
@@ -476,6 +493,7 @@ def _catalog_pre_candidate(entry: CatalogIndexEntry, helper_extent: Extent) -> C
         deprecated_rank=entry.deprecated_rank,
         area_size=entry.area_size,
         specificity_rank=entry.specificity_rank,
+        preferred_national_grid_rank=preferred_rank,
         is_utm_or_ups=entry.is_utm_or_ups,
         coverage_rank=coverage_rank,
     )
@@ -502,6 +520,7 @@ def _catalog_candidate_from_pre(pre_candidate: CatalogPreCandidate, extent_wgs84
         deprecated_rank=pre_candidate.deprecated_rank,
         area_size=pre_candidate.area_size,
         specificity_rank=pre_candidate.specificity_rank,
+        preferred_national_grid_rank=pre_candidate.preferred_national_grid_rank,
         distortion_ppm=distortion_ppm,
         is_utm_or_ups=pre_candidate.is_utm_or_ups,
     )
@@ -512,6 +531,7 @@ def _candidate_pre_rank_key(candidate: CatalogPreCandidate) -> tuple:
         candidate.coverage_rank,
         candidate.deprecated_rank,
         candidate.specificity_rank,
+        candidate.preferred_national_grid_rank,
         candidate.area_size,
         candidate.authid,
     )
@@ -522,11 +542,16 @@ def _select_best_catalog_crs(extent_wgs84, feedback=None) -> CatalogCandidate | 
     if qgis_extent is None:
         return None
 
+    preferred_national_grid_authid = _preferred_national_grid_authid(helper_extent)
     pre_candidates = []
     for entry in _catalog_index(feedback):
         if feedback is not None and hasattr(feedback, "isCanceled") and feedback.isCanceled():
             return None
-        pre_candidate = _catalog_pre_candidate(entry, helper_extent)
+        pre_candidate = _catalog_pre_candidate(
+            entry,
+            helper_extent,
+            preferred_national_grid_authid=preferred_national_grid_authid,
+        )
         if pre_candidate is not None:
             pre_candidates.append(pre_candidate)
 

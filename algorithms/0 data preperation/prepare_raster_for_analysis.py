@@ -9,7 +9,11 @@ from qgis.core import QgsProcessingParameterExtent
 from qgis.core import QgsProcessingParameterRasterDestination
 from qgis.core import QgsProcessingParameterRasterLayer
 
-from regengis_processing_plugin.autocrs import prepare_raster_for_analysis
+
+def _prepare_raster_for_analysis(*args, **kwargs):
+    from regengis_processing_plugin.autocrs.prepare import prepare_raster_for_analysis
+
+    return prepare_raster_for_analysis(*args, **kwargs)
 
 
 class PrepareRasterForAnalysis(QgsProcessingAlgorithm):
@@ -82,7 +86,7 @@ class PrepareRasterForAnalysis(QgsProcessingAlgorithm):
         analysis_extent = self.parameterAsExtent(parameters, self.ANALYSIS_EXTENT, context)
         analysis_extent_crs = self.parameterAsExtentCrs(parameters, self.ANALYSIS_EXTENT, context)
         output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-        prepared = prepare_raster_for_analysis(
+        prepared = _prepare_raster_for_analysis(
             layer,
             context=context,
             feedback=feedback,

@@ -59,7 +59,7 @@ class _Recommendation:
 
 
 class RecommendAnalysisCrsAlgorithmTests(unittest.TestCase):
-    def _load_module(self):
+    def _load_module(self, include_autocrs=True):
         fake_qgis = types.ModuleType("qgis")
         fake_core = types.ModuleType("qgis.core")
         fake_core.QgsProcessingAlgorithm = _DummyProcessingAlgorithm
@@ -69,15 +69,17 @@ class RecommendAnalysisCrsAlgorithmTests(unittest.TestCase):
         fake_core.QgsProcessingParameterRasterLayer = _DummyProcessingParameterRasterLayer
         fake_qgis.core = fake_core
 
-        fake_autocrs = types.ModuleType("regengis_processing_plugin.autocrs")
-        fake_autocrs.recommend_analysis_crs_for_layer = lambda layer, feedback=None: None
-
         old_qgis = sys.modules.get("qgis")
         old_qgis_core = sys.modules.get("qgis.core")
         old_autocrs = sys.modules.get("regengis_processing_plugin.autocrs")
         sys.modules["qgis"] = fake_qgis
         sys.modules["qgis.core"] = fake_core
-        sys.modules["regengis_processing_plugin.autocrs"] = fake_autocrs
+        if include_autocrs:
+            fake_autocrs = types.ModuleType("regengis_processing_plugin.autocrs")
+            fake_autocrs.recommend_analysis_crs_for_layer = lambda layer, feedback=None: None
+            sys.modules["regengis_processing_plugin.autocrs"] = fake_autocrs
+        else:
+            sys.modules.pop("regengis_processing_plugin.autocrs", None)
         try:
             spec = importlib.util.spec_from_file_location("recommend_analysis_crs_test_module", MODULE_PATH)
             module = importlib.util.module_from_spec(spec)
@@ -98,6 +100,10 @@ class RecommendAnalysisCrsAlgorithmTests(unittest.TestCase):
             else:
                 sys.modules.pop("regengis_processing_plugin.autocrs", None)
 
+    def test_module_import_does_not_require_autocrs_package(self):
+        module = self._load_module(include_autocrs=False)
+        self.assertTrue(hasattr(module, "RecommendAnalysisCrs"))
+
     def test_algorithm_uses_recommend_analysis_helper(self):
         module = self._load_module()
         algorithm = module.RecommendAnalysisCrs()
@@ -106,7 +112,7 @@ class RecommendAnalysisCrsAlgorithmTests(unittest.TestCase):
         recommendation = _Recommendation()
 
         with mock.patch.object(algorithm, "parameterAsRasterLayer", return_value=layer), \
-             mock.patch.object(module, "recommend_analysis_crs_for_layer", return_value=recommendation) as helper_mock:
+             mock.patch.object(module, "_recommend_analysis_crs_for_layer", return_value=recommendation) as helper_mock:
             result = algorithm.processAlgorithm(
                 parameters={module.RecommendAnalysisCrs.INPUT: "dummy"},
                 context=object(),
