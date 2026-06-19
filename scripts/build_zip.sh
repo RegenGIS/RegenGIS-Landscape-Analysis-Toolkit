@@ -75,6 +75,8 @@ rsync -a \
   --exclude='docs/**' \
   --exclude='test' \
   --exclude='test/**' \
+  --exclude='tests' \
+  --exclude='tests/**' \
   --exclude='dist' \
   --exclude='dist/**' \
   --exclude='venv' \
@@ -115,6 +117,6 @@ echo "SHA-256: $SHA"
 
 echo
 echo "Sanity check (should print nothing below this line):"
-unzip -l "$OUT" | grep -E '__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|scripts/|__MACOSX/' \
+unzip -l "$OUT" | grep -E '__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|scripts/|tests/|test/|__MACOSX/' \
   && { echo "FAIL: zip contains excluded entries" >&2; exit 1; } \
   || echo "OK: no excluded entries found"
