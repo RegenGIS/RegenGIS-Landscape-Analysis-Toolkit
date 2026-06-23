@@ -78,10 +78,10 @@ class TopographicWetnessIndex(QgsProcessingAlgorithm):
     def displayName(self):
         return 'Topographic Wetness Index'
     def group(self):
-        return 'Voedselbos'
+        return 'Hydrology'
 
     def groupId(self):
-        return 'Voedselbos'
+        return 'hydrology'
 
     def shortHelpString(self):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">

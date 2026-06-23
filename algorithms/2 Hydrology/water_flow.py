@@ -19,7 +19,7 @@ class WaterFlow(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterRasterLayer('digital_terrain_model_dtm', 'Digital Terrain Model (DTM)', defaultValue=None))
-        self.addParameter(QgsProcessingParameterRasterDestination('Water_flow', 'water_flow', createByDefault=True, defaultValue=''))
+        self.addParameter(QgsProcessingParameterRasterDestination('Water_flow', 'Water flow', createByDefault=True, defaultValue=''))
 
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
@@ -107,10 +107,10 @@ class WaterFlow(QgsProcessingAlgorithm):
     def displayName(self):
         return 'Water Flow'
     def group(self):
-        return 'Voedselbos'
+        return 'Hydrology'
 
     def groupId(self):
-        return 'Voedselbos'
+        return 'hydrology'
 
     def shortHelpString(self):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">

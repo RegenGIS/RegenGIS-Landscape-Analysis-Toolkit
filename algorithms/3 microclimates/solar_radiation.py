@@ -52,8 +52,8 @@ class SolarRadiation(QgsProcessingAlgorithm):
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterDateTime('date', 'Date', type=QgsProcessingParameterDateTime.Date, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('digital_surface_model_dsm_or_digital_terrain_model_dtm', 'Digital Surface Model (DSM) or Digital Terrain Model (DTM)', defaultValue=None))
-        self.addParameter(QgsProcessingParameterRasterDestination('Shade_intensity', 'Shade_intensity', optional=True, createByDefault=True, defaultValue=None))
-        self.addParameter(QgsProcessingParameterRasterDestination('Solar_hours', 'Solar_hours', createByDefault=True, defaultValue=None))
+        self.addParameter(QgsProcessingParameterRasterDestination('Shade_intensity', 'Shade intensity', optional=True, createByDefault=True, defaultValue=None))
+        self.addParameter(QgsProcessingParameterRasterDestination('Solar_hours', 'Solar hours', createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Aspect', 'Aspect', createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Slope', 'Slope', createByDefault=True, defaultValue=None))
 
@@ -163,12 +163,12 @@ class SolarRadiation(QgsProcessingAlgorithm):
     def name(self):
         return 'solar_radiation'
     def displayName(self):
-        return 'Solar radiation'
+        return 'Solar Radiation'
     def group(self):
-        return 'Voedselbos'
+        return 'Microclimates'
 
     def groupId(self):
-        return 'Voedselbos'
+        return 'microclimates'
 
     def shortHelpString(self):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
