@@ -14,6 +14,7 @@ if str(PLUGIN_PARENT) not in sys.path:
 from regengis_processing_plugin.autocrs.heuristics import Extent
 from regengis_processing_plugin.autocrs.selector import (
     CatalogIndexEntry,
+    CatalogCandidate,
     _candidate_pre_rank_key,
     _BoundsProxy,
     _catalog_pre_candidate,
@@ -23,6 +24,7 @@ from regengis_processing_plugin.autocrs.selector import (
     _load_catalog_index_cache_status,
     _plugin_root,
     _preferred_national_grid_authid,
+    recommend_metric_crs_for_extent,
     _save_catalog_index_cache,
     _specificity_rank,
 )
@@ -147,6 +149,57 @@ class AutoCrsSelectorTests(unittest.TestCase):
     def test_catalog_cache_rebuild_message_mentions_one_time_rebuild(self):
         message = _catalog_cache_rebuild_message({"reason": "missing"})
         self.assertIn("should only happen once", message)
+
+    def test_recommend_metric_crs_for_extent_skips_catalog_for_clear_fast_path(self):
+        extent = Extent(5.0, 51.0, 5.8, 51.4)
+        with (
+            mock.patch(
+                "regengis_processing_plugin.autocrs.selector._extent_from_wgs84_input",
+                return_value=(extent, object()),
+            ),
+            mock.patch("regengis_processing_plugin.autocrs.selector.QgsCoordinateReferenceSystem", object()),
+            mock.patch(
+                "regengis_processing_plugin.autocrs.selector._select_best_catalog_crs",
+                side_effect=AssertionError("catalog path should not run for a clear fast-path recommendation"),
+            ),
+        ):
+            recommendation = recommend_metric_crs_for_extent(object())
+
+        self.assertEqual(recommendation.authid, "EPSG:28992")
+        self.assertEqual(recommendation.strategy, "national_grid")
+
+    def test_recommend_metric_crs_for_extent_uses_catalog_for_custom_local_metric(self):
+        extent = Extent(-30.0, 20.0, 40.0, 65.0)
+        catalog_choice = CatalogCandidate(
+            authid="EPSG:3035",
+            description="ETRS89-extended / LAEA Europe",
+            proj4="+proj=laea +lat_0=52 +lon_0=10 +datum=WGS84 +units=m +no_defs +type=crs",
+            epsg=3035,
+            coverage_rank=0,
+            deprecated_rank=0,
+            area_size=1.0,
+            specificity_rank=1,
+            preferred_national_grid_rank=1,
+            distortion_ppm=12.5,
+            is_utm_or_ups=False,
+        )
+        with (
+            mock.patch(
+                "regengis_processing_plugin.autocrs.selector._extent_from_wgs84_input",
+                return_value=(extent, object()),
+            ),
+            mock.patch("regengis_processing_plugin.autocrs.selector.QgsCoordinateReferenceSystem", object()),
+            mock.patch(
+                "regengis_processing_plugin.autocrs.selector._select_best_catalog_crs",
+                return_value=catalog_choice,
+            ) as select_catalog,
+        ):
+            recommendation = recommend_metric_crs_for_extent(object())
+
+        select_catalog.assert_called_once()
+        self.assertEqual(recommendation.authid, "EPSG:3035")
+        self.assertEqual(recommendation.strategy, "catalog_epsg")
+        self.assertEqual(recommendation.distortion_ppm, 12.5)
 
 
 if __name__ == "__main__":

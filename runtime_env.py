@@ -19,10 +19,11 @@ def proj_lib_candidate_from_gdal_data(gdal_data: str | None) -> str | None:
         return None
 
     gdal_path = Path(gdal_data)
-    parts_lower = [part.lower() for part in gdal_path.parts]
-    try:
-        gdal_index = parts_lower.index("gdal")
-    except ValueError:
+    gdal_index = next(
+        (index for index, part in enumerate(gdal_path.parts) if part.lower() == "gdal"),
+        None,
+    )
+    if gdal_index is None:
         return None
 
     candidate = Path(*gdal_path.parts[:gdal_index], "proj", *gdal_path.parts[gdal_index + 1 :])

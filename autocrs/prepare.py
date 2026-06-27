@@ -361,6 +361,20 @@ def _stage_raster_via_native_rastercalc(layer, context, feedback, *, extent=None
     return staged_output
 
 
+def _stage_nonlocal_raster_input(layer, context, feedback, *, extent=None, intro_message: str | None = None):
+    if intro_message and feedback is not None and hasattr(feedback, "pushInfo"):
+        feedback.pushInfo(intro_message)
+    try:
+        return _write_layer_to_temp_geotiff(layer, context, feedback, extent=extent)
+    except RuntimeError as exc:
+        if feedback is not None and hasattr(feedback, "pushInfo"):
+            feedback.pushInfo(
+                "Direct temporary GeoTIFF staging failed, so RegenGIS is retrying through QGIS raster calculator with the working extent. "
+                f"Details: {exc}"
+            )
+        return _stage_raster_via_native_rastercalc(layer, context, feedback, extent=extent)
+
+
 def _materialize_gdal_input(layer, context, feedback, requested_extent=None, requested_extent_crs=None):
     provider_type = _layer_provider_type(layer)
     source = _layer_source(layer)
@@ -371,42 +385,34 @@ def _materialize_gdal_input(layer, context, feedback, requested_extent=None, req
             requested_extent_crs=requested_extent_crs,
             feedback=feedback,
         )
-        if feedback is not None and hasattr(feedback, "pushInfo"):
-            feedback.pushInfo(
+        return _stage_nonlocal_raster_input(
+            layer,
+            context,
+            feedback,
+            extent=extent,
+            intro_message=(
                 "Input raster comes from a WCS provider, so RegenGIS is staging a local GeoTIFF before GDAL processing and limiting the request to the working extent when possible."
-            )
-        try:
-            return _write_layer_to_temp_geotiff(layer, context, feedback, extent=extent)
-        except RuntimeError as exc:
-            if feedback is not None and hasattr(feedback, "pushInfo"):
-                feedback.pushInfo(
-                    "Direct temporary GeoTIFF staging failed, so RegenGIS is retrying through QGIS raster calculator with the working extent. "
-                    f"Details: {exc}"
-                )
-            return _stage_raster_via_native_rastercalc(layer, context, feedback, extent=extent)
+            ),
+        )
 
     if _is_probably_local_raster_source(source):
         return layer
 
-    if feedback is not None and hasattr(feedback, "pushInfo"):
-        feedback.pushInfo(
-            f"Input raster provider '{provider_type or 'unknown'}' is not a direct local file source, so RegenGIS is staging a local GeoTIFF before GDAL processing."
-        )
     extent = _resolve_materialization_extent(
         layer,
         requested_extent=requested_extent,
         requested_extent_crs=requested_extent_crs,
         feedback=feedback,
     )
-    try:
-        return _write_layer_to_temp_geotiff(layer, context, feedback, extent=extent)
-    except RuntimeError as exc:
-        if feedback is not None and hasattr(feedback, "pushInfo"):
-            feedback.pushInfo(
-                "Direct temporary GeoTIFF staging failed, so RegenGIS is retrying through QGIS raster calculator with the working extent. "
-                f"Details: {exc}"
-            )
-        return _stage_raster_via_native_rastercalc(layer, context, feedback, extent=extent)
+    return _stage_nonlocal_raster_input(
+        layer,
+        context,
+        feedback,
+        extent=extent,
+        intro_message=(
+            f"Input raster provider '{provider_type or 'unknown'}' is not a direct local file source, so RegenGIS is staging a local GeoTIFF before GDAL processing."
+        ),
+    )
 
 
 def _copy_raster_output(layer, context, feedback, output):
@@ -460,6 +466,57 @@ def _reproject_raster_output(layer, context, feedback, output, *, target_crs=Non
     return result["OUTPUT"]
 
 
+def _output_requested(output) -> bool:
+    return output not in (None, "")
+
+
+def _materialize_input_if_needed(
+    layer,
+    context,
+    feedback,
+    *,
+    output,
+    analysis_extent=None,
+    analysis_extent_crs=None,
+):
+    if not _output_requested(output):
+        return layer
+    return _materialize_gdal_input(
+        layer,
+        context,
+        feedback,
+        requested_extent=analysis_extent,
+        requested_extent_crs=analysis_extent_crs,
+    )
+
+
+def _copy_output_if_requested(layer, context, feedback, output):
+    if not _output_requested(output):
+        return layer
+    return _copy_raster_output(layer, context, feedback, output)
+
+
+def _build_prepared_raster(
+    layer_or_path,
+    *,
+    source_crs_authid,
+    target_crs_authid,
+    was_reprojected,
+    recommendation,
+    pixel_size_x,
+    pixel_size_y,
+) -> PreparedRaster:
+    return PreparedRaster(
+        layer_or_path=layer_or_path,
+        source_crs_authid=source_crs_authid,
+        target_crs_authid=target_crs_authid,
+        was_reprojected=was_reprojected,
+        recommendation=recommendation,
+        pixel_size_x=pixel_size_x,
+        pixel_size_y=pixel_size_y,
+    )
+
+
 def prepare_raster_for_analysis(
     layer,
     context,
@@ -482,30 +539,28 @@ def prepare_raster_for_analysis(
     source_authid = source_crs.authid() or ""
     target_authid = target_crs_object.authid() or recommendation.authid
     pixel_size_x, pixel_size_y = _pixel_size(layer)
+    output_requested = _output_requested(output)
 
     if not auto_select and target_crs is None:
-        gdal_input = (
-            _materialize_gdal_input(
+        prepared_output = _copy_output_if_requested(
+            _materialize_input_if_needed(
                 layer,
                 context,
                 feedback,
-                requested_extent=analysis_extent,
-                requested_extent_crs=analysis_extent_crs,
-            )
-            if output not in (None, "")
-            else layer
+                output=output,
+                analysis_extent=analysis_extent,
+                analysis_extent_crs=analysis_extent_crs,
+            ),
+            context,
+            feedback,
+            output,
         )
-        prepared_output = (
-            _copy_raster_output(gdal_input, context, feedback, output)
-            if output not in (None, "")
-            else layer
-        )
-        if feedback is not None and hasattr(feedback, "pushInfo") and output not in (None, ""):
+        if feedback is not None and hasattr(feedback, "pushInfo") and output_requested:
             feedback.pushInfo(
                 "Automatic CRS selection is disabled and no manual target CRS was provided, so RegenGIS created an output copy in the source CRS."
             )
-        return PreparedRaster(
-            layer_or_path=prepared_output,
+        return _build_prepared_raster(
+            prepared_output,
             source_crs_authid=source_authid,
             target_crs_authid=source_authid,
             was_reprojected=False,
@@ -517,26 +572,23 @@ def prepare_raster_for_analysis(
     if not layer_needs_reprojection(layer, target_crs_object):
         if feedback is not None and hasattr(feedback, "pushInfo"):
             feedback.pushInfo(f"Input raster already uses the selected analysis CRS ({target_authid}).")
-        gdal_input = (
-            _materialize_gdal_input(
+        prepared_output = _copy_output_if_requested(
+            _materialize_input_if_needed(
                 layer,
                 context,
                 feedback,
-                requested_extent=analysis_extent,
-                requested_extent_crs=analysis_extent_crs,
-            )
-            if output not in (None, "")
-            else layer
+                output=output,
+                analysis_extent=analysis_extent,
+                analysis_extent_crs=analysis_extent_crs,
+            ),
+            context,
+            feedback,
+            output,
         )
-        prepared_output = (
-            _copy_raster_output(gdal_input, context, feedback, output)
-            if output not in (None, "")
-            else layer
-        )
-        if feedback is not None and hasattr(feedback, "pushInfo") and output not in (None, ""):
+        if feedback is not None and hasattr(feedback, "pushInfo") and output_requested:
             feedback.pushInfo("Creating an analysis-ready output copy without reprojection.")
-        return PreparedRaster(
-            layer_or_path=prepared_output,
+        return _build_prepared_raster(
+            prepared_output,
             source_crs_authid=source_authid,
             target_crs_authid=target_authid,
             was_reprojected=False,
@@ -550,24 +602,22 @@ def prepare_raster_for_analysis(
             f"Preparing raster for analysis by reprojecting from {source_authid or 'unknown CRS'} to {target_authid}."
         )
 
-    gdal_input = _materialize_gdal_input(
-        layer,
-        context,
-        feedback,
-        requested_extent=analysis_extent,
-        requested_extent_crs=analysis_extent_crs,
-    )
-
     prepared_output = _reproject_raster_output(
-        gdal_input,
+        _materialize_gdal_input(
+            layer,
+            context,
+            feedback,
+            requested_extent=analysis_extent,
+            requested_extent_crs=analysis_extent_crs,
+        ),
         context,
         feedback,
         output,
         target_crs=target_crs_object,
     )
 
-    return PreparedRaster(
-        layer_or_path=prepared_output,
+    return _build_prepared_raster(
+        prepared_output,
         source_crs_authid=source_authid,
         target_crs_authid=target_authid,
         was_reprojected=True,

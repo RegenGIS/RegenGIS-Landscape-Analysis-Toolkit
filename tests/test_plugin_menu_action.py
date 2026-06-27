@@ -32,6 +32,18 @@ class _DummyAction:
         self.triggered = _DummySignal()
 
 
+class _DummyQTimer:
+    scheduled = []
+
+    @classmethod
+    def reset(cls):
+        cls.scheduled = []
+
+    @classmethod
+    def singleShot(cls, delay_ms, callback):
+        cls.scheduled.append((delay_ms, callback))
+
+
 class _DummyRegistry:
     def __init__(self):
         self.added = []
@@ -77,6 +89,7 @@ class PluginMenuActionTests(unittest.TestCase):
     def setUpClass(cls):
         cls._old_modules = {name: sys.modules.get(name) for name in [
             "PyQt5",
+            "PyQt5.QtCore",
             "PyQt5.QtWidgets",
             "qgis",
             "qgis.core",
@@ -88,8 +101,11 @@ class PluginMenuActionTests(unittest.TestCase):
         ]}
 
         fake_pyqt5 = types.ModuleType("PyQt5")
+        fake_qtcore = types.ModuleType("PyQt5.QtCore")
         fake_qtwidgets = types.ModuleType("PyQt5.QtWidgets")
+        setattr(fake_qtcore, "QTimer", _DummyQTimer)
         setattr(fake_qtwidgets, "QAction", _DummyAction)
+        setattr(fake_pyqt5, "QtCore", fake_qtcore)
         setattr(fake_pyqt5, "QtWidgets", fake_qtwidgets)
 
         fake_qgis = types.ModuleType("qgis")
@@ -112,6 +128,7 @@ class PluginMenuActionTests(unittest.TestCase):
         setattr(fake_runtime_env_module, "ensure_proj_runtime_env", lambda: None)
 
         sys.modules["PyQt5"] = fake_pyqt5
+        sys.modules["PyQt5.QtCore"] = fake_qtcore
         sys.modules["PyQt5.QtWidgets"] = fake_qtwidgets
         sys.modules["qgis"] = fake_qgis
         sys.modules["qgis.core"] = fake_qgis_core
@@ -133,6 +150,7 @@ class PluginMenuActionTests(unittest.TestCase):
 
     def setUp(self):
         _DummyQgsApplication.registry = _DummyRegistry()
+        _DummyQTimer.reset()
         self.iface = _DummyIface()
         self.plugin = self.plugin_module.ModelToolboxPlugin(self.iface)
 
@@ -148,6 +166,22 @@ class PluginMenuActionTests(unittest.TestCase):
         self.assertIs(self.plugin._about_action, action)
         self.assertEqual(len(_DummyQgsApplication.registry.added), 1)
         show_dialog.assert_not_called()
+        self.assertEqual(_DummyQTimer.scheduled, [])
+
+    def test_init_gui_defers_first_run_community_dialog_until_after_startup(self):
+        with mock.patch.object(self.plugin_module, "community_dialog_dismissed", return_value=False), \
+             mock.patch.object(self.plugin_module, "show_community_dialog") as show_dialog:
+            self.plugin.initGui()
+
+            self.assertEqual(len(_DummyQgsApplication.registry.added), 1)
+            self.assertEqual(len(_DummyQTimer.scheduled), 1)
+            delay_ms, callback = _DummyQTimer.scheduled[0]
+            self.assertEqual(delay_ms, 0)
+            show_dialog.assert_not_called()
+
+            callback()
+
+            show_dialog.assert_called_once_with(parent=self.iface.mainWindow())
 
     def test_about_menu_action_opens_community_dialog(self):
         with mock.patch.object(self.plugin_module, "community_dialog_dismissed", return_value=True), \

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from PyQt5.QtCore import QSettings
 
-from .community_dialog import CommunityDialog
-
 COMMUNITY_DIALOG_DISMISSED_KEY = "regengis/community_dialog_dismissed"
 
 
 def show_community_dialog(*, parent=None) -> int:
     """Open the RegenGIS community dialog and persist the dismissed flag."""
+    from .community_dialog import CommunityDialog
+
     dialog = CommunityDialog(parent)
     result = dialog.exec_()
     QSettings().setValue(COMMUNITY_DIALOG_DISMISSED_KEY, True)

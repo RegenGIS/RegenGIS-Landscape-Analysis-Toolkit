@@ -599,6 +599,22 @@ def _choice_to_recommendation(choice: MetricCrsChoice, distortion_ppm: float) ->
     )
 
 
+def _fast_path_recommendation_for_extent(helper_extent: Extent, qgis_extent=None) -> AutoCrsRecommendation | None:
+    """Return a cheap recommendation when the pure heuristic already has a clear winner."""
+    choice = choose_metric_crs(helper_extent)
+    if choice.strategy not in {"national_grid", "utm", "ups"}:
+        return None
+
+    distortion_ppm = 0.0
+    if qgis_extent is not None and QgsCoordinateReferenceSystem is not None:
+        try:
+            crs = _choice_to_qgis_crs(choice)
+            distortion_ppm = float(_max_scale_factor_over_extent_with_transform(_crs_transform_from_wgs84(crs), qgis_extent)) * 1_000_000.0
+        except Exception:
+            distortion_ppm = 0.0
+    return _choice_to_recommendation(choice, distortion_ppm)
+
+
 def _fallback_recommendation_for_extent(helper_extent: Extent, qgis_extent=None) -> AutoCrsRecommendation:
     choice = choose_metric_crs(helper_extent)
     distortion_ppm = 0.0
@@ -613,6 +629,10 @@ def _fallback_recommendation_for_extent(helper_extent: Extent, qgis_extent=None)
 
 def recommend_metric_crs_for_extent(extent_wgs84, feedback=None) -> AutoCrsRecommendation:
     helper_extent, qgis_extent = _extent_from_wgs84_input(extent_wgs84)
+
+    fast_path = _fast_path_recommendation_for_extent(helper_extent, qgis_extent)
+    if fast_path is not None:
+        return fast_path
 
     if qgis_extent is not None and QgsCoordinateReferenceSystem is not None:
         catalog_candidate = _select_best_catalog_crs(qgis_extent, feedback)

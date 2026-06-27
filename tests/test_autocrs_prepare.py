@@ -72,6 +72,53 @@ class _DummyFeedback:
 
 
 class AutoCrsPrepareTests(unittest.TestCase):
+    def test_auto_select_disabled_without_manual_target_copies_in_source_crs(self):
+        layer = _DummyLayer("EPSG:28992")
+        feedback = _DummyFeedback()
+        recommendation = AutoCrsRecommendation(
+            authid="EPSG:28992",
+            description="Amersfoort / RD New",
+            proj4="proj4",
+            epsg=28992,
+            strategy="national_grid",
+            distortion_ppm=0.0,
+            is_utm_or_ups=False,
+        )
+
+        with mock.patch("regengis_processing_plugin.autocrs.prepare._require_qgis"), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._require_processing"), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare.recommend_analysis_crs_for_layer", return_value=recommendation), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._target_crs_from_input", return_value=_DummyCrs("EPSG:28992")), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._pixel_size", return_value=(1.0, 1.0)), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._materialize_gdal_input", return_value="/tmp/staged-input.tif") as stage_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._copy_raster_output", return_value="/tmp/source-copy.tif") as copy_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare.layer_needs_reprojection") as reprojection_check_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._reproject_raster_output") as reproject_mock:
+            prepared = prepare_raster_for_analysis(
+                layer,
+                context=object(),
+                feedback=feedback,
+                target_crs=None,
+                auto_select=False,
+                output="/tmp/requested-output.tif",
+            )
+
+        stage_mock.assert_called_once_with(
+            layer,
+            mock.ANY,
+            feedback,
+            requested_extent=None,
+            requested_extent_crs=None,
+        )
+        copy_mock.assert_called_once_with("/tmp/staged-input.tif", mock.ANY, feedback, "/tmp/requested-output.tif")
+        reprojection_check_mock.assert_not_called()
+        reproject_mock.assert_not_called()
+        self.assertEqual(prepared.layer_or_path, "/tmp/source-copy.tif")
+        self.assertEqual(prepared.source_crs_authid, "EPSG:28992")
+        self.assertEqual(prepared.target_crs_authid, "EPSG:28992")
+        self.assertFalse(prepared.was_reprojected)
+        self.assertTrue(any("automatic crs selection is disabled" in message.lower() for message in feedback.messages))
+
     def test_no_reprojection_with_output_uses_copy_not_reproject(self):
         layer = _DummyLayer("EPSG:28992")
         feedback = _DummyFeedback()
@@ -345,6 +392,33 @@ class AutoCrsPrepareTests(unittest.TestCase):
         rastercalc_mock.assert_called_once_with(layer, mock.ANY, feedback, extent=limited_extent)
         self.assertEqual(result, "/tmp/wcs-rastercalc-stage.tif")
         self.assertTrue(any("retrying through qgis raster calculator" in message.lower() for message in feedback.messages))
+
+    def test_materialize_remote_nonlocal_source_uses_shared_staging_path(self):
+        layer = _DummyLayer("EPSG:28992", provider_type="wms", source="https://example.test/raster")
+        feedback = _DummyFeedback()
+        limited_extent = _DummyExtent(width=14.0, height=9.0)
+
+        with mock.patch("regengis_processing_plugin.autocrs.prepare._resolve_materialization_extent", return_value=limited_extent) as extent_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._write_layer_to_temp_geotiff", return_value="/tmp/remote-stage.tif") as write_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._stage_raster_via_native_rastercalc") as rastercalc_mock:
+            result = prepare_module._materialize_gdal_input(
+                layer,
+                context=object(),
+                feedback=feedback,
+                requested_extent=None,
+                requested_extent_crs=None,
+            )
+
+        extent_mock.assert_called_once_with(
+            layer,
+            requested_extent=None,
+            requested_extent_crs=None,
+            feedback=feedback,
+        )
+        write_mock.assert_called_once_with(layer, mock.ANY, feedback, extent=limited_extent)
+        rastercalc_mock.assert_not_called()
+        self.assertEqual(result, "/tmp/remote-stage.tif")
+        self.assertTrue(any("not a direct local file source" in message.lower() for message in feedback.messages))
 
     def test_recommend_analysis_crs_for_wcs_prefers_current_map_extent(self):
         layer = _DummyLayer("EPSG:28992", provider_type="wcs", source="wcs://example")
