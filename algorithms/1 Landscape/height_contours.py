@@ -25,9 +25,9 @@ def _current_map_extent_in_layer_crs(layer, feedback=None):
 class HeightContours(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
-        self.addParameter(QgsProcessingParameterNumber('desired_height_distance_between_contours_m', 'Desired height distance between contours (m)', type=QgsProcessingParameterNumber.Double, defaultValue=None))
+        self.addParameter(QgsProcessingParameterNumber('desired_height_distance_between_contours_m', 'Desired height distance between contours (m)', type=QgsProcessingParameterNumber.Type.Double, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('digital_terrain_model_dtm', 'Digital Terrain Model (DTM)', defaultValue=None))
-        self.addParameter(QgsProcessingParameterVectorDestination('Height_contours', 'Height contours', type=QgsProcessing.TypeVectorLine, createByDefault=True, defaultValue=''))
+        self.addParameter(QgsProcessingParameterVectorDestination('Height_contours', 'Height contours', type=QgsProcessing.SourceType.TypeVectorLine, createByDefault=True, defaultValue=''))
 
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the

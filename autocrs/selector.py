@@ -443,6 +443,8 @@ def _catalog_index(feedback=None) -> list[CatalogIndexEntry]:
         try:
             bounds = crs.bounds()
         except Exception:
+            bounds = None
+        if bounds is None:
             continue
 
         try:

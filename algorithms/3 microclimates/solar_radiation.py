@@ -100,7 +100,7 @@ def _set_layer_name_on_completion(context, output_path, layer_name):
 class SolarRadiation(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
-        self.addParameter(QgsProcessingParameterDateTime('date', 'Date', type=QgsProcessingParameterDateTime.Date, defaultValue=None))
+        self.addParameter(QgsProcessingParameterDateTime('date', 'Date', type=QgsProcessingParameterDateTime.Type.Date, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('digital_surface_model_dsm_or_digital_terrain_model_dtm', 'Digital Surface Model (DSM) or Digital Terrain Model (DTM)', defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Shade_intensity', 'Shade intensity', optional=True, createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Solar_hours', 'Solar hours', createByDefault=True, defaultValue=None))

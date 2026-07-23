@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt5.QtCore import QSettings
+from qgis.PyQt.QtCore import QSettings
 
 COMMUNITY_DIALOG_DISMISSED_KEY = "regengis/community_dialog_dismissed"
 
@@ -10,7 +10,7 @@ def show_community_dialog(*, parent=None) -> int:
     from .community_dialog import CommunityDialog
 
     dialog = CommunityDialog(parent)
-    result = dialog.exec_()
+    result = dialog.exec()
     QSettings().setValue(COMMUNITY_DIALOG_DISMISSED_KEY, True)
     return result
 

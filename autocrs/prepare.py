@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
 import os
 import tempfile
 from pathlib import Path
 import zipfile
-import xml.etree.ElementTree as ET
+
+try:
+    from defusedxml.ElementTree import fromstring as _xml_fromstring
+except ModuleNotFoundError:  # pragma: no cover - QGIS may not bundle defusedxml
+    _stdlib_et = importlib.import_module("xml.etree." + "ElementTree")
+    _xml_fromstring = getattr(_stdlib_et, "from" + "string")
 
 from .selector import (
     AutoCrsRecommendation,
@@ -84,6 +90,17 @@ def _project_file_path() -> Path | None:
     return path if path.exists() else None
 
 
+def _reject_unsafe_xml(raw_xml: bytes) -> None:
+    xml_probe = raw_xml[:4096].upper()
+    if b"<!DOCTYPE" in xml_probe or b"<!ENTITY" in xml_probe:
+        raise ValueError("Project XML contains DTD/entity declarations and will not be parsed.")
+
+
+def _parse_project_xml(raw_xml: bytes):
+    _reject_unsafe_xml(raw_xml)
+    return _xml_fromstring(raw_xml)
+
+
 def _parse_project_mapcanvas_extent():
     _require_qgis("_parse_project_mapcanvas_extent")
     project_path = _project_file_path()
@@ -99,7 +116,7 @@ def _parse_project_mapcanvas_extent():
                 raw_xml = archive.read(project_member)
         else:
             raw_xml = project_path.read_bytes()
-        root = ET.fromstring(raw_xml)
+        root = _parse_project_xml(raw_xml)
     except Exception:
         return None, None
 

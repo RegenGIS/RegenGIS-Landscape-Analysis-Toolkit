@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import QAction
+from qgis.PyQt.QtCore import QTimer
+from qgis.PyQt.QtWidgets import QAction
 from qgis.core import QgsApplication
 from qgis.gui import QgisInterface
 

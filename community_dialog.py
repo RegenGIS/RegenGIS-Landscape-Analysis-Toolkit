@@ -1,9 +1,8 @@
 import os
 
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap, QDesktopServices
-from PyQt5.QtCore import QUrl
+from qgis.PyQt.QtCore import Qt, QUrl
+from qgis.PyQt.QtGui import QPixmap, QDesktopServices
+from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget
 
 
 class CommunityDialog(QDialog):
@@ -27,14 +26,14 @@ class CommunityDialog(QDialog):
         banner.setFixedHeight(120)
 
         banner_layout = QVBoxLayout(banner)
-        banner_layout.setAlignment(Qt.AlignCenter)
+        banner_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         if os.path.exists(logo_path):
             logo_label = QLabel()
             pixmap = QPixmap(logo_path)
-            scaled = pixmap.scaled(200, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            scaled = pixmap.scaled(200, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             logo_label.setPixmap(scaled)
-            logo_label.setAlignment(Qt.AlignCenter)
+            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             banner_layout.addWidget(logo_label)
 
         main_layout.addWidget(banner)
@@ -55,7 +54,7 @@ class CommunityDialog(QDialog):
             "padding: 20px; "
             "font-size: 13px;"
         )
-        content_widget.setAlignment(Qt.AlignCenter)
+        content_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
         content_widget.setWordWrap(True)
         main_layout.addWidget(content_widget)
 

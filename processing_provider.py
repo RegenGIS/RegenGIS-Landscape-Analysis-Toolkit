@@ -12,7 +12,7 @@ import sys
 import traceback
 from pathlib import Path
 
-from PyQt5.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsProcessingAlgorithm, QgsProcessingProvider
 
 from . import algorithms as algorithms_pkg
