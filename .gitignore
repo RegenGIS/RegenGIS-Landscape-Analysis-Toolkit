@@ -42,9 +42,5 @@ __pycache__
 # Test/scratch folders
 .pytest_cache/
 .pytest_cache/**
-tests/output/
-tests/output/**
-test/
 tests/
-tests/**
-algorithms/TEST/
+scripts/
