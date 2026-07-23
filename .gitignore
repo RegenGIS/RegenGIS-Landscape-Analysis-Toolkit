@@ -29,6 +29,7 @@ Thumbs.db
 .autocrs-cache/
 .autocrs-cache/**
 __pycache__
+PUBLISHING_CHECKLIST.md
 
 # Release artifacts (kept out of source)
 *.zip
