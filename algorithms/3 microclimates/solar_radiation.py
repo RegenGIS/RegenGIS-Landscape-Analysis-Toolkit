@@ -187,6 +187,32 @@ class SolarRadiation(QgsProcessingAlgorithm):
         if feedback.isCanceled():
             return {}
 
+        # Stamp/stabilize the rasters before handing them to GRASS. On Windows
+        # QGIS 3.44 the temporary rastercalc/aspect/slope outputs can reach
+        # GRASS without readable projection metadata, causing r.sun to fail
+        # with "Can't get projection info of current project".
+        outputs['GrassElevation'] = _translate_raster_to_input_crs(
+            outputs['FillNodata']['OUTPUT'],
+            QgsProcessing.TEMPORARY_OUTPUT,
+            input_crs,
+            context,
+            feedback,
+        )
+        outputs['GrassAspect'] = _translate_raster_to_input_crs(
+            outputs['Aspect']['OUTPUT'],
+            QgsProcessing.TEMPORARY_OUTPUT,
+            input_crs,
+            context,
+            feedback,
+        )
+        outputs['GrassSlope'] = _translate_raster_to_input_crs(
+            outputs['Slope']['OUTPUT'],
+            QgsProcessing.TEMPORARY_OUTPUT,
+            input_crs,
+            context,
+            feedback,
+        )
+
         # r.sun.insoltime
         alg_params = {
             '-m': False,
@@ -197,7 +223,7 @@ class SolarRadiation(QgsProcessingAlgorithm):
             'GRASS_REGION_PARAMETER': working_extent,
             'albedo': None,
             'albedo_value': None,
-            'aspect': outputs['Aspect']['OUTPUT'],
+            'aspect': outputs['GrassAspect'],
             'aspect_value': None,
             'civil_time': None,
             'coeff_bh': None,
@@ -205,14 +231,14 @@ class SolarRadiation(QgsProcessingAlgorithm):
             'day': analysis_day,
             'declination': None,
             'distance_step': 1,
-            'elevation': outputs['FillNodata']['OUTPUT'],
+            'elevation': outputs['GrassElevation'],
             'horizon_basemap': None,
             'horizon_step': None,
             'lat': None,
             'linke': None,
             'long': None,
             'npartitions': 1,
-            'slope': outputs['Slope']['OUTPUT'],
+            'slope': outputs['GrassSlope'],
             'slope_value': 0,
             'step': 0.5,
             'glob_rad': QgsProcessing.TEMPORARY_OUTPUT,

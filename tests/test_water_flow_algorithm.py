@@ -23,6 +23,28 @@ class _DummyProcessing:
     TEMPORARY_OUTPUT = "TEMP"
 
 
+class _DummyLayerDetails:
+    def __init__(self, name=None, project=None, output_name=None):
+        self.name = name
+        self.project = project
+        self.output_name = output_name
+
+
+class _DummyProcessingContext:
+    LayerDetails = _DummyLayerDetails
+
+
+class _DummyContext:
+    def __init__(self):
+        self.layers_to_load = {}
+
+    def layerToLoadOnCompletionDetails(self, output_path):
+        return self.layers_to_load.get(output_path)
+
+    def addLayerToLoadOnCompletion(self, output_path, details):
+        self.layers_to_load[output_path] = details
+
+
 class _DummyProcessingMultiStepFeedback:
     def __init__(self, steps, feedback):
         self.steps = steps
@@ -76,6 +98,7 @@ class WaterFlowAlgorithmTests(unittest.TestCase):
         fake_core = types.ModuleType("qgis.core")
         setattr(fake_core, "QgsProcessing", _DummyProcessing)
         setattr(fake_core, "QgsProcessingAlgorithm", _DummyProcessingAlgorithm)
+        setattr(fake_core, "QgsProcessingContext", _DummyProcessingContext)
         setattr(fake_core, "QgsProcessingMultiStepFeedback", _DummyProcessingMultiStepFeedback)
         setattr(fake_core, "QgsProcessingParameterRasterLayer", _DummyProcessingParameterRasterLayer)
         setattr(fake_core, "QgsProcessingParameterRasterDestination", _DummyProcessingParameterRasterDestination)
@@ -132,12 +155,13 @@ class WaterFlowAlgorithmTests(unittest.TestCase):
 
         with mock.patch.object(module, "_current_map_extent_in_layer_crs", return_value=map_extent), \
              mock.patch.object(module.processing, "run", side_effect=_run):
+            context = _DummyContext()
             result = algorithm.processAlgorithm(
                 parameters={
                     "digital_terrain_model_dtm": input_layer,
                     "Water_flow": "water_flow_out.tif",
                 },
-                context=object(),
+                context=context,
                 model_feedback=object(),
             )
 
@@ -146,7 +170,9 @@ class WaterFlowAlgorithmTests(unittest.TestCase):
         self.assertIs(grass_calls[0]["GRASS_REGION_PARAMETER"], map_extent)
         self.assertEqual(rastercalc_calls[1]["CRS"].authid(), "EPSG:28992")
         self.assertIs(rastercalc_calls[1]["EXTENT"], map_extent)
+        self.assertEqual(rastercalc_calls[1]["EXPRESSION"], 'log10("A@1" + 1)')
         self.assertEqual(result["Water_flow"], "log10.tif")
+        self.assertEqual(context.layers_to_load["log10.tif"].name, "Water Flow")
 
 
 if __name__ == "__main__":

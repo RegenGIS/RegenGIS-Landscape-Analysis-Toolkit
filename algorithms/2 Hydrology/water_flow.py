@@ -8,6 +8,7 @@ the algorithm id, display name and class boilerplate for plugin use.
 
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
+from qgis.core import QgsProcessingContext
 from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
@@ -18,6 +19,29 @@ def _current_map_extent_in_layer_crs(layer, feedback=None):
     from regengis_processing_plugin.autocrs.prepare import _current_map_extent_in_layer_crs as helper
 
     return helper(layer, feedback=feedback)
+
+
+def _set_layer_name_on_completion(context, output_path, layer_name):
+    if not output_path or context is None:
+        return
+
+    try:
+        details = context.layerToLoadOnCompletionDetails(output_path)
+    except Exception:
+        details = None
+
+    if details is None:
+        try:
+            details = QgsProcessingContext.LayerDetails(layer_name, None, '')
+        except Exception:
+            return
+
+    details.name = layer_name
+
+    try:
+        context.addLayerToLoadOnCompletion(output_path, details)
+    except Exception:
+        return
 
 
 class WaterFlow(QgsProcessingAlgorithm):
@@ -110,13 +134,14 @@ class WaterFlow(QgsProcessingAlgorithm):
         alg_params = {
             'CELL_SIZE': None,
             'CRS': input_crs,
-            'EXPRESSION': ' log10 ( "A@1")',
+            'EXPRESSION': 'log10("A@1" + 1)',
             'EXTENT': working_extent,
             'LAYERS': outputs['Rflow']['flowaccumulation'],
             'OUTPUT': parameters['Water_flow']
         }
         outputs['RasterCalculatorLog10'] = processing.run('native:modelerrastercalc', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
         results['Water_flow'] = outputs['RasterCalculatorLog10']['OUTPUT']
+        _set_layer_name_on_completion(context, results['Water_flow'], 'Water Flow')
         return results
 
     def name(self):

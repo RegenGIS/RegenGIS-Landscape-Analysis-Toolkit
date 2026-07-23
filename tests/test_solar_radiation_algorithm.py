@@ -189,7 +189,10 @@ class SolarRadiationAlgorithmTests(unittest.TestCase):
                 return {"glob_rad": "raw_shade.tif", "insol_time": "raw_hours.tif"}
             if algorithm_id == "gdal:translate":
                 translate_calls.append(alg_params)
-                return {"OUTPUT": alg_params["OUTPUT"]}
+                output = alg_params["OUTPUT"]
+                if output == _DummyProcessing.TEMPORARY_OUTPUT:
+                    output = f"translated_{len(translate_calls)}.tif"
+                return {"OUTPUT": output}
             raise AssertionError(f"Unexpected algorithm id: {algorithm_id}")
 
         with mock.patch.object(module, "_current_map_extent_in_layer_crs", return_value=map_extent), \
@@ -214,13 +217,22 @@ class SolarRadiationAlgorithmTests(unittest.TestCase):
         self.assertIs(grass_calls[0]["GRASS_REGION_PARAMETER"], map_extent)
         self.assertEqual(grass_calls[0]["glob_rad"], _DummyProcessing.TEMPORARY_OUTPUT)
         self.assertEqual(grass_calls[0]["insol_time"], _DummyProcessing.TEMPORARY_OUTPUT)
-        self.assertEqual(len(translate_calls), 2)
-        self.assertEqual(translate_calls[0]["INPUT"], "raw_shade.tif")
-        self.assertEqual(translate_calls[0]["OUTPUT"], "shade_out.tif")
-        self.assertEqual(translate_calls[0]["TARGET_CRS"].authid(), "EPSG:28992")
-        self.assertEqual(translate_calls[1]["INPUT"], "raw_hours.tif")
-        self.assertEqual(translate_calls[1]["OUTPUT"], "hours_out.tif")
-        self.assertEqual(translate_calls[1]["TARGET_CRS"].authid(), "EPSG:28992")
+        self.assertEqual(grass_calls[0]["elevation"], "translated_1.tif")
+        self.assertEqual(grass_calls[0]["aspect"], "translated_2.tif")
+        self.assertEqual(grass_calls[0]["slope"], "translated_3.tif")
+        self.assertEqual(len(translate_calls), 5)
+        self.assertEqual(translate_calls[0]["INPUT"], "fill.tif")
+        self.assertEqual(translate_calls[0]["OUTPUT"], _DummyProcessing.TEMPORARY_OUTPUT)
+        self.assertEqual(translate_calls[1]["INPUT"], "aspect.tif")
+        self.assertEqual(translate_calls[1]["OUTPUT"], _DummyProcessing.TEMPORARY_OUTPUT)
+        self.assertEqual(translate_calls[2]["INPUT"], "slope.tif")
+        self.assertEqual(translate_calls[2]["OUTPUT"], _DummyProcessing.TEMPORARY_OUTPUT)
+        self.assertEqual(translate_calls[3]["INPUT"], "raw_shade.tif")
+        self.assertEqual(translate_calls[3]["OUTPUT"], "shade_out.tif")
+        self.assertEqual(translate_calls[4]["INPUT"], "raw_hours.tif")
+        self.assertEqual(translate_calls[4]["OUTPUT"], "hours_out.tif")
+        for translate_call in translate_calls:
+            self.assertEqual(translate_call["TARGET_CRS"].authid(), "EPSG:28992")
         self.assertEqual(result["Shade_intensity"], "shade_out.tif")
         self.assertEqual(result["Solar_hours"], "hours_out.tif")
         self.assertEqual(context.layers_to_load["shade_out.tif"].name, "Shade intensity")

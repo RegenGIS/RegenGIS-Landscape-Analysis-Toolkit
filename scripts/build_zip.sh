@@ -8,10 +8,9 @@
 #   ./scripts/build_zip.sh
 #
 # Output:
-#   dist/<plugin-folder>-<version>.zip
-# where <plugin-folder> matches the GitHub repository name and <version>
-# comes from metadata.txt. The zip root is exactly that folder name so
-# QGIS installs the plugin under the right name.
+#   dist/<plugin-folder>.zip
+# where <plugin-folder> matches the GitHub repository name. The zip root is
+# exactly that folder name so QGIS installs the plugin under the right name.
 
 set -euo pipefail
 
@@ -34,13 +33,12 @@ get_field() {
   echo "${line#${key}=}"
 }
 
-VERSION=$(get_field version)
 # Plugin folder name inside the zip. Use the repository/package folder name so
 # QGIS sees a normal Python package root and the published source matches GitHub.
 PLUGIN_DIR="$(basename "$ROOT")"
 
 OUT_DIR="$ROOT/dist"
-OUT="$OUT_DIR/${PLUGIN_DIR}-${VERSION}.zip"
+OUT="$OUT_DIR/${PLUGIN_DIR}.zip"
 
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT

@@ -19,7 +19,7 @@ This checklist covers:
 ## 2. QGIS plugin repository checklist
 
 - [ ] Build the release zip with `bash scripts/build_zip.sh`.
-- [ ] Upload the generated file from `dist/regengis_processing_plugin-0.1.zip`.
+- [ ] Upload the generated file from `dist/regengis_processing_plugin.zip`.
 - [ ] The zip contains exactly one top-level folder: `regengis_processing_plugin/`.
 - [ ] `regengis_processing_plugin/metadata.txt` exists inside the zip root.
 - [ ] `metadata.txt` includes: `name`, `version`, `description`, `about`, `tracker`, `repository`, `homepage`, `license`.
@@ -62,7 +62,7 @@ bash scripts/build_zip.sh
 
 Then upload:
 
-- `dist/regengis_processing_plugin-0.1.zip`
+- `dist/regengis_processing_plugin.zip`
 
 ## Recommended release decision
 
@@ -78,7 +78,7 @@ Deleting and recreating the repo is usually unnecessary and breaks links, issues
 
 ## Current known good release artifact
 
-- Built file: `dist/regengis_processing_plugin-0.1.zip`
+- Built file: `dist/regengis_processing_plugin.zip`
 - Expected root folder inside zip: `regengis_processing_plugin/`
 - `metadata.txt` is present at the correct level inside the zip.
 
