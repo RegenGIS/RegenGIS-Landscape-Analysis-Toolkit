@@ -70,6 +70,8 @@ rsync -a \
   --exclude='.vscode/**' \
   --exclude='.idea' \
   --exclude='.idea/**' \
+  --exclude='.pytest_cache' \
+  --exclude='.pytest_cache/**' \
   --exclude='scripts' \
   --exclude='scripts/**' \
   --exclude='docs' \
@@ -141,7 +143,7 @@ echo "SHA-256: $SHA"
 echo
 echo "Sanity check (should print nothing below this line):"
 if command -v unzip >/dev/null 2>&1; then
-  unzip -l "$OUT" | grep -E '__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|scripts/|tests/|test/|__MACOSX/' \
+  unzip -l "$OUT" | grep -E '__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|/\.pytest_cache/|scripts/|tests/|test/|__MACOSX/' \
     && { echo "FAIL: zip contains excluded entries" >&2; exit 1; } \
     || echo "OK: no excluded entries found"
 else
@@ -152,7 +154,7 @@ import sys
 import zipfile
 
 zip_path = Path(sys.argv[1])
-pattern = re.compile(r'__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|scripts/|tests/|test/|__MACOSX/')
+pattern = re.compile(r'__pycache__|\.DS_Store|\.git/|/\.hermes/|/\.autocrs-cache/|/\.pytest_cache/|scripts/|tests/|test/|__MACOSX/')
 with zipfile.ZipFile(zip_path) as zf:
     hits = [name for name in zf.namelist() if pattern.search(name)]
 if hits:

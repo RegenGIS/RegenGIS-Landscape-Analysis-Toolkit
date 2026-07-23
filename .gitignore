@@ -22,6 +22,7 @@ build/
 # OS junk
 .DS_Store
 Thumbs.db
+.gitignore
 
 # Local-only state (not part of the plugin)
 .hermes/
