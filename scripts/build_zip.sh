@@ -50,55 +50,91 @@ DEST="$STAGE/$PLUGIN_DIR"
 mkdir -p "$DEST"
 
 # Copy publishable files, excluding everything QGIS forbids or that is
-# local-only / dev-only.
-rsync -a \
-  --exclude='__pycache__' \
-  --exclude='__pycache__/**' \
-  --exclude='*.pyc' \
-  --exclude='*.pyo' \
-  --exclude='*.pyd' \
-  --exclude='.DS_Store' \
-  --exclude='Thumbs.db' \
-  --exclude='.git' \
-  --exclude='.git/**' \
-  --exclude='.gitignore' \
-  --exclude='.hermes' \
-  --exclude='.hermes/**' \
-  --exclude='.autocrs-cache' \
-  --exclude='.autocrs-cache/**' \
-  --exclude='.vscode' \
-  --exclude='.vscode/**' \
-  --exclude='.idea' \
-  --exclude='.idea/**' \
-  --exclude='.pytest_cache' \
-  --exclude='.pytest_cache/**' \
-  --exclude='scripts' \
-  --exclude='scripts/**' \
-  --exclude='docs' \
-  --exclude='docs/**' \
-  --exclude='decode_images.py' \
-  --exclude='test' \
-  --exclude='test/**' \
-  --exclude='tests' \
-  --exclude='tests/**' \
-  --exclude='dist' \
-  --exclude='dist/**' \
-  --exclude='screenshot.png' \
-  --exclude='screenshot.png.b64' \
-  --exclude='venv' \
-  --exclude='venv/**' \
-  --exclude='.venv' \
-  --exclude='.venv/**' \
-  --exclude='env' \
-  --exclude='env/**' \
-  --exclude='__MACOSX' \
-  --exclude='__MACOSX/**' \
-  --exclude='*.zip' \
-  --exclude='*.tar.gz' \
-  --exclude='*.tgz' \
-  --exclude='algorithms/TEST' \
-  --exclude='algorithms/TEST/**' \
-  "$ROOT/" "$DEST/"
+# local-only / dev-only. Prefer rsync when available; fall back to Python on
+# minimal Hermes/Linux runtimes where rsync is not installed.
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a \
+    --exclude='__pycache__' \
+    --exclude='__pycache__/**' \
+    --exclude='*.pyc' \
+    --exclude='*.pyo' \
+    --exclude='*.pyd' \
+    --exclude='.DS_Store' \
+    --exclude='Thumbs.db' \
+    --exclude='.git' \
+    --exclude='.git/**' \
+    --exclude='.gitignore' \
+    --exclude='.hermes' \
+    --exclude='.hermes/**' \
+    --exclude='.autocrs-cache' \
+    --exclude='.autocrs-cache/**' \
+    --exclude='.vscode' \
+    --exclude='.vscode/**' \
+    --exclude='.idea' \
+    --exclude='.idea/**' \
+    --exclude='.pytest_cache' \
+    --exclude='.pytest_cache/**' \
+    --exclude='scripts' \
+    --exclude='scripts/**' \
+    --exclude='docs' \
+    --exclude='docs/**' \
+    --exclude='decode_images.py' \
+    --exclude='test' \
+    --exclude='test/**' \
+    --exclude='tests' \
+    --exclude='tests/**' \
+    --exclude='dist' \
+    --exclude='dist/**' \
+    --exclude='screenshot.png' \
+    --exclude='screenshot.png.b64' \
+    --exclude='venv' \
+    --exclude='venv/**' \
+    --exclude='.venv' \
+    --exclude='.venv/**' \
+    --exclude='env' \
+    --exclude='env/**' \
+    --exclude='__MACOSX' \
+    --exclude='__MACOSX/**' \
+    --exclude='*.zip' \
+    --exclude='*.tar.gz' \
+    --exclude='*.tgz' \
+    --exclude='algorithms/TEST' \
+    --exclude='algorithms/TEST/**' \
+    "$ROOT/" "$DEST/"
+else
+  python3 - <<'PY' "$ROOT" "$DEST"
+from pathlib import Path
+import fnmatch
+import shutil
+import sys
+
+root = Path(sys.argv[1]).resolve()
+dest = Path(sys.argv[2]).resolve()
+exclude_dirs = {
+    '__pycache__', '.git', '.hermes', '.autocrs-cache', '.vscode', '.idea',
+    '.pytest_cache', 'scripts', 'docs', 'test', 'tests', 'dist', 'venv',
+    '.venv', 'env', '__MACOSX', 'TEST',
+}
+exclude_files = {
+    '.DS_Store', 'Thumbs.db', '.gitignore', 'decode_images.py',
+    'screenshot.png', 'screenshot.png.b64',
+}
+exclude_globs = ('*.pyc', '*.pyo', '*.pyd', '*.zip', '*.tar.gz', '*.tgz')
+
+for path in root.rglob('*'):
+    rel = path.relative_to(root)
+    if any(part in exclude_dirs for part in rel.parts):
+        continue
+    if path.is_dir():
+        (dest / rel).mkdir(parents=True, exist_ok=True)
+        continue
+    if path.name in exclude_files or any(fnmatch.fnmatch(path.name, pat) for pat in exclude_globs):
+        continue
+    target = dest / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, target)
+PY
+fi
 
 # Build the zip from inside the staging dir so its root is PLUGIN_DIR/.
 mkdir -p "$OUT_DIR"

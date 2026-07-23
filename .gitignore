@@ -22,7 +22,6 @@ build/
 # OS junk
 .DS_Store
 Thumbs.db
-.gitignore
 
 # Local-only state (not part of the plugin)
 .hermes/
@@ -40,5 +39,9 @@ Thumbs.db
 .git/
 
 # Test/scratch folders
+.pytest_cache/
+.pytest_cache/**
+tests/output/
+tests/output/**
 test/
 algorithms/TEST/

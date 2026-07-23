@@ -21,6 +21,12 @@ A QGIS Processing provider and toolbox with spatial analysis tools to support de
 ## Usage
 
 - After installing, open the Processing Toolbox and search for "RegenGIS" or the individual algorithm names in the `RegenGIS Landscape Analysis Toolkit` provider.
+- `Height Contours` currently uses a **memory-first output workflow** to avoid reproducible GeoPackage transaction locks in headless/provider execution.
+- Recommended workflow for `Height Contours`:
+  1. run the algorithm and keep the result as a temporary memory layer
+  2. inspect the result in QGIS
+  3. export the layer afterwards to GeoPackage, Shapefile or another file format if needed
+- Do **not** rely on direct `.gpkg` output from `Height Contours` as a production-safe path until this provider/runtime issue is resolved.
 
 ## Support & Contribution
 

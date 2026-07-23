@@ -53,6 +53,15 @@ class _DummyProcessing:
     TypeVectorLine = "vector-line"
 
 
+class _DummyLayerDetails:
+    def __init__(self, *args, **kwargs):
+        self.name = args[0] if args else None
+
+
+class _DummyProcessingContext:
+    LayerDetails = _DummyLayerDetails
+
+
 class _DummyProcessingMultiStepFeedback:
     def __init__(self, steps, feedback):
         self.steps = steps
@@ -82,18 +91,34 @@ class _DummyExpression:
         return "MAP_EXTENT"
 
 
+class _DummyProject:
+    @staticmethod
+    def instance():
+        return _DummyProject()
+
+
+class _DummyVectorLayer:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+
 class AlgorithmMetadataTests(unittest.TestCase):
+
     def _load_module(self, module_name: str, module_path: Path):
         fake_qgis = types.ModuleType("qgis")
         fake_core = types.ModuleType("qgis.core")
         setattr(fake_core, "QgsProcessing", _DummyProcessing)
         setattr(fake_core, "QgsProcessingAlgorithm", _DummyProcessingAlgorithm)
+        setattr(fake_core, "QgsProcessingContext", _DummyProcessingContext)
         setattr(fake_core, "QgsProcessingMultiStepFeedback", _DummyProcessingMultiStepFeedback)
         setattr(fake_core, "QgsProcessingParameterDateTime", _DummyParameter)
         setattr(fake_core, "QgsProcessingParameterNumber", _DummyParameter)
         setattr(fake_core, "QgsProcessingParameterRasterLayer", _DummyParameter)
         setattr(fake_core, "QgsProcessingParameterRasterDestination", _DummyParameter)
         setattr(fake_core, "QgsProcessingParameterVectorDestination", _DummyParameter)
+        setattr(fake_core, "QgsProject", _DummyProject)
+        setattr(fake_core, "QgsVectorLayer", _DummyVectorLayer)
         setattr(fake_core, "QgsExpression", _DummyExpression)
         setattr(fake_qgis, "core", fake_core)
 

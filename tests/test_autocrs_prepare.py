@@ -15,14 +15,18 @@ from regengis_processing_plugin.autocrs.selector import AutoCrsRecommendation
 
 
 class _DummyCrs:
-    def __init__(self, authid: str):
+    def __init__(self, authid: str, *, valid: bool = True):
         self._authid = authid
+        self._valid = valid
 
     def authid(self) -> str:
         return self._authid
 
     def isValid(self) -> bool:
-        return True
+        return self._valid
+
+    def description(self) -> str:
+        return self._authid
 
 
 class _DummyExtent:
@@ -435,7 +439,8 @@ class AutoCrsPrepareTests(unittest.TestCase):
             is_utm_or_ups=True,
         )
 
-        with mock.patch("regengis_processing_plugin.autocrs.prepare._current_map_extent_in_layer_crs", return_value=map_extent) as map_extent_mock, \
+        with mock.patch("regengis_processing_plugin.autocrs.prepare._existing_metric_crs_recommendation", return_value=None), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._current_map_extent_in_layer_crs", return_value=map_extent) as map_extent_mock, \
              mock.patch("regengis_processing_plugin.autocrs.prepare._transform_extent", return_value=map_extent_wgs84) as transform_mock, \
              mock.patch("regengis_processing_plugin.autocrs.prepare.recommend_metric_crs_for_extent", return_value=recommendation) as extent_recommendation_mock, \
              mock.patch("regengis_processing_plugin.autocrs.prepare.recommend_metric_crs_for_layer") as layer_recommendation_mock, \
@@ -463,7 +468,8 @@ class AutoCrsPrepareTests(unittest.TestCase):
             is_utm_or_ups=False,
         )
 
-        with mock.patch("regengis_processing_plugin.autocrs.prepare._current_map_extent_in_layer_crs", return_value=None) as map_extent_mock, \
+        with mock.patch("regengis_processing_plugin.autocrs.prepare._existing_metric_crs_recommendation", return_value=None), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._current_map_extent_in_layer_crs", return_value=None) as map_extent_mock, \
              mock.patch("regengis_processing_plugin.autocrs.prepare.recommend_metric_crs_for_layer", return_value=recommendation) as layer_recommendation_mock, \
              mock.patch("regengis_processing_plugin.autocrs.prepare.recommend_metric_crs_for_extent") as extent_recommendation_mock:
             result = prepare_module.recommend_analysis_crs_for_layer(layer, feedback=feedback)
@@ -473,6 +479,59 @@ class AutoCrsPrepareTests(unittest.TestCase):
         extent_recommendation_mock.assert_not_called()
         self.assertIs(result, recommendation)
         self.assertTrue(any("falling back to the full layer extent" in message.lower() for message in feedback.messages))
+
+    def test_recommend_analysis_crs_for_projected_local_file_prefers_current_map_extent_over_broad_source_crs(self):
+        layer = _DummyLayer("EPSG:3035", provider_type="gdal", source="/tmp/dsm_eur.tif")
+        feedback = _DummyFeedback()
+        map_extent = _DummyExtent(width=12.0, height=8.0)
+        map_extent_wgs84 = _DummyExtent(width=1.0, height=1.0)
+        recommendation = AutoCrsRecommendation(
+            authid="EPSG:28992",
+            description="Amersfoort / RD New",
+            proj4="proj4",
+            epsg=28992,
+            strategy="national_grid",
+            distortion_ppm=0.0,
+            is_utm_or_ups=False,
+        )
+
+        with mock.patch("regengis_processing_plugin.autocrs.prepare._current_map_extent_in_layer_crs", return_value=map_extent) as map_extent_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._transform_extent", return_value=map_extent_wgs84) as transform_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare.recommend_metric_crs_for_extent", return_value=recommendation) as extent_recommendation_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._existing_metric_crs_recommendation") as existing_metric_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare.recommend_metric_crs_for_layer") as layer_recommendation_mock, \
+             mock.patch("regengis_processing_plugin.autocrs.prepare.QgsCoordinateReferenceSystem") as qcrs_mock:
+            qcrs_mock.fromEpsgId.return_value = _DummyCrs("EPSG:4326")
+            result = prepare_module.recommend_analysis_crs_for_layer(layer, feedback=feedback)
+
+        map_extent_mock.assert_called_once_with(layer, feedback=feedback)
+        transform_mock.assert_called_once_with(map_extent, layer.crs(), qcrs_mock.fromEpsgId.return_value)
+        extent_recommendation_mock.assert_called_once_with(map_extent_wgs84, feedback=feedback)
+        existing_metric_mock.assert_not_called()
+        layer_recommendation_mock.assert_not_called()
+        self.assertIs(result, recommendation)
+        self.assertTrue(any("current map extent" in message.lower() for message in feedback.messages))
+
+    def test_recommend_analysis_crs_reuses_existing_metric_projected_source_crs(self):
+        layer = _DummyLayer("EPSG:28992")
+        feedback = _DummyFeedback()
+
+        with mock.patch("regengis_processing_plugin.autocrs.prepare._is_metric_projected_crs", return_value=True), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare._current_map_extent_in_layer_crs", return_value=None), \
+             mock.patch("regengis_processing_plugin.autocrs.prepare.recommend_metric_crs_for_layer") as layer_recommendation_mock:
+            result = prepare_module.recommend_analysis_crs_for_layer(layer, feedback=feedback)
+
+        layer_recommendation_mock.assert_not_called()
+        self.assertEqual(result.authid, "EPSG:28992")
+        self.assertEqual(result.strategy, "existing_metric_crs")
+        self.assertTrue(any("keeping that crs" in message.lower() for message in feedback.messages))
+
+    def test_recommend_analysis_crs_rejects_missing_or_invalid_source_crs(self):
+        layer = _DummyLayer("", provider_type="gdal", source="/tmp/input.tif")
+        layer._crs = _DummyCrs("", valid=False)
+
+        with self.assertRaisesRegex(ValueError, "missing or invalid"):
+            prepare_module.recommend_analysis_crs_for_layer(layer)
 
 
 if __name__ == "__main__":

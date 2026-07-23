@@ -1,0 +1,29 @@
+version: 1
+contract_id: recommend_analysis_crs
+algorithm_id: regengis_toolbox:recommend_analysis_crs
+display_name: Recommend Analysis CRS
+group: Data Preparation
+kind: metadata
+required_result_keys:
+  OUTPUT_CRS:
+    type: string
+    required: true
+    non_empty: true
+  OUTPUT_DESCRIPTION:
+    type: string
+    required: true
+    non_empty: true
+  OUTPUT_PROJ:
+    type: string
+    required: true
+    non_empty: true
+  OUTPUT_STRATEGY:
+    type: string
+    required: true
+    non_empty: true
+  OUTPUT_DISTORTION_PPM:
+    type: number
+    required: true
+  OUTPUT_IS_UTM:
+    type: boolean
+    required: true

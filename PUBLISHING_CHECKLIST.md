@@ -27,6 +27,8 @@ This checklist covers:
 - [ ] The plugin zip does not include tests, scripts, caches, `.git`, `.DS_Store`, `__MACOSX` or local work folders.
 - [ ] The plugin zip is well below the QGIS upload size limit.
 - [ ] Public documentation is available from the homepage / README.
+- [ ] `Height Contours` memory-first output limitation is documented clearly in README / release notes.
+- [ ] Direct `.gpkg` output from `Height Contours` is not presented as production-safe until the provider/runtime lock bug is resolved.
 - [ ] Source code on GitHub matches the uploaded zip contents.
 
 ## 3. Visual Studio Code publishing flow
@@ -79,3 +81,13 @@ Deleting and recreating the repo is usually unnecessary and breaks links, issues
 - Built file: `dist/regengis_processing_plugin-0.1.zip`
 - Expected root folder inside zip: `regengis_processing_plugin/`
 - `metadata.txt` is present at the correct level inside the zip.
+
+## Current release blocker / workaround
+
+- `Height Contours` is currently reliable as a **temporary memory output**.
+- Direct provider output from `Height Contours` to `.gpkg` remains a reproducible runtime lock issue in headless testing.
+- Safe user workflow for now:
+  1. run `Height Contours`
+  2. keep the result as the temporary output layer
+  3. export the resulting layer afterwards from QGIS if a file on disk is needed
+- Production publication should treat direct `.gpkg` output for this tool as an open limitation until a real provider-side fix exists.

@@ -12,8 +12,14 @@ from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterNumber
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterVectorDestination
-from qgis.core import QgsExpression
+
 import processing
+
+
+def _current_map_extent_in_layer_crs(layer, feedback=None):
+    from regengis_processing_plugin.autocrs.prepare import _current_map_extent_in_layer_crs as helper
+
+    return helper(layer, feedback=feedback)
 
 
 class HeightContours(QgsProcessingAlgorithm):
@@ -26,20 +32,33 @@ class HeightContours(QgsProcessingAlgorithm):
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
         # overall progress through the model
-        feedback = QgsProcessingMultiStepFeedback(3, model_feedback)
+        feedback = QgsProcessingMultiStepFeedback(4, model_feedback)
         results = {}
         outputs = {}
+        input_layer = self.parameterAsRasterLayer(parameters, 'digital_terrain_model_dtm', context)
+        if input_layer is None:
+            raise ValueError('Input raster layer is required.')
+
+        input_crs = input_layer.crs()
+        working_extent = _current_map_extent_in_layer_crs(input_layer, feedback=feedback)
+        if working_extent is not None:
+            if hasattr(feedback, 'pushInfo'):
+                feedback.pushInfo('RegenGIS is clipping the DTM to the current map extent, transformed into the raster CRS.')
+        else:
+            working_extent = input_layer.extent()
+            if hasattr(feedback, 'pushInfo'):
+                feedback.pushInfo('Current map extent was unavailable, so RegenGIS is clipping the DTM to the full raster extent.')
 
         # Raster calculator
         alg_params = {
             'CELL_SIZE': None,
-            'CRS': None,
+            'CRS': input_crs,
             'EXPRESSION': '"A@1"',
-            'EXTENT': QgsExpression(' @map_extent ').evaluate(),
+            'EXTENT': working_extent,
             'LAYERS': parameters['digital_terrain_model_dtm'],
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
-        outputs['RasterCalculator'] = processing.run('native:modelerrastercalc', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        outputs['RasterCalculator'] = processing.run('native:modelerrastercalc', alg_params, context=context, feedback=feedback)
 
         feedback.setCurrentStep(1)
         if feedback.isCanceled():
@@ -56,7 +75,7 @@ class HeightContours(QgsProcessingAlgorithm):
             'OPTIONS': None,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
-        outputs['FillNodata'] = processing.run('gdal:fillnodata', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        outputs['FillNodata'] = processing.run('gdal:fillnodata', alg_params, context=context, feedback=feedback)
 
         feedback.setCurrentStep(2)
         if feedback.isCanceled():
@@ -75,7 +94,7 @@ class HeightContours(QgsProcessingAlgorithm):
             'OFFSET': 0,
             'OUTPUT': parameters['Height_contours']
         }
-        outputs['Contour'] = processing.run('gdal:contour', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        outputs['Contour'] = processing.run('gdal:contour', alg_params, context=context, feedback=feedback)
         results['Height_contours'] = outputs['Contour']['OUTPUT']
         return results
 

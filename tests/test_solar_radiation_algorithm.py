@@ -19,12 +19,38 @@ class _DummyProcessingAlgorithm:
     def parameterAsDateTime(self, parameters, name, context):
         return parameters.get(name)
 
+    def parameterAsRasterLayer(self, parameters, name, context):
+        return parameters.get(name)
+
 
 class _DummyProcessing:
     TEMPORARY_OUTPUT = "TEMP"
 
 
+class _DummyLayerDetails:
+    def __init__(self, name=None, project=None, output_name=None):
+        self.name = name
+        self.project = project
+        self.output_name = output_name
+
+
+class _DummyProcessingContext:
+    LayerDetails = _DummyLayerDetails
+
+
+class _DummyContext:
+    def __init__(self):
+        self.layers_to_load = {}
+
+    def layerToLoadOnCompletionDetails(self, output_path):
+        return self.layers_to_load.get(output_path)
+
+    def addLayerToLoadOnCompletion(self, output_path, details):
+        self.layers_to_load[output_path] = details
+
+
 class _DummyProcessingMultiStepFeedback:
+
     def __init__(self, steps, feedback):
         self.steps = steps
         self.feedback = feedback
@@ -53,12 +79,28 @@ class _DummyProcessingParameterRasterDestination(_DummyProcessingParameterDateTi
     pass
 
 
-class _DummyExpression:
-    def __init__(self, expression):
-        self.expression = expression
+class _DummyCrs:
+    def __init__(self, authid: str):
+        self._authid = authid
 
-    def evaluate(self):
-        return "MAP_EXTENT"
+    def authid(self):
+        return self._authid
+
+
+class _DummyExtent:
+    pass
+
+
+class _DummyRasterLayer:
+    def __init__(self, authid: str = "EPSG:28992"):
+        self._crs = _DummyCrs(authid)
+        self._extent = _DummyExtent()
+
+    def crs(self):
+        return self._crs
+
+    def extent(self):
+        return self._extent
 
 
 class _DummyQDateTime:
@@ -75,11 +117,11 @@ class SolarRadiationAlgorithmTests(unittest.TestCase):
         fake_core = types.ModuleType("qgis.core")
         setattr(fake_core, "QgsProcessing", _DummyProcessing)
         setattr(fake_core, "QgsProcessingAlgorithm", _DummyProcessingAlgorithm)
+        setattr(fake_core, "QgsProcessingContext", _DummyProcessingContext)
         setattr(fake_core, "QgsProcessingMultiStepFeedback", _DummyProcessingMultiStepFeedback)
         setattr(fake_core, "QgsProcessingParameterDateTime", _DummyProcessingParameterDateTime)
         setattr(fake_core, "QgsProcessingParameterRasterLayer", _DummyProcessingParameterRasterLayer)
         setattr(fake_core, "QgsProcessingParameterRasterDestination", _DummyProcessingParameterRasterDestination)
-        setattr(fake_core, "QgsExpression", _DummyExpression)
         setattr(fake_qgis, "core", fake_core)
 
         fake_processing = types.ModuleType("processing")
@@ -126,9 +168,15 @@ class SolarRadiationAlgorithmTests(unittest.TestCase):
         module = self._load_module()
         algorithm = module.SolarRadiation()
         grass_calls = []
+        translate_calls = []
+        rastercalc_calls = []
+        map_extent = _DummyExtent()
+        input_layer = _DummyRasterLayer()
+        context = _DummyContext()
 
         def _run(algorithm_id, alg_params, **kwargs):
             if algorithm_id == "native:modelerrastercalc":
+                rastercalc_calls.append(alg_params)
                 return {"OUTPUT": "clip.tif"}
             if algorithm_id == "gdal:fillnodata":
                 return {"OUTPUT": "fill.tif"}
@@ -138,27 +186,45 @@ class SolarRadiationAlgorithmTests(unittest.TestCase):
                 return {"OUTPUT": "slope.tif"}
             if algorithm_id == "grass:r.sun.insoltime":
                 grass_calls.append(alg_params)
-                return {"glob_rad": "shade.tif", "insol_time": "hours.tif"}
+                return {"glob_rad": "raw_shade.tif", "insol_time": "raw_hours.tif"}
+            if algorithm_id == "gdal:translate":
+                translate_calls.append(alg_params)
+                return {"OUTPUT": alg_params["OUTPUT"]}
             raise AssertionError(f"Unexpected algorithm id: {algorithm_id}")
 
-        with mock.patch.object(module.processing, "run", side_effect=_run):
+        with mock.patch.object(module, "_current_map_extent_in_layer_crs", return_value=map_extent), \
+             mock.patch.object(module.processing, "run", side_effect=_run):
             result = algorithm.processAlgorithm(
                 parameters={
                     "date": date(2026, 6, 21),
-                    "digital_surface_model_dsm_or_digital_terrain_model_dtm": "dsm.tif",
+                    "digital_surface_model_dsm_or_digital_terrain_model_dtm": input_layer,
                     "Shade_intensity": "shade_out.tif",
                     "Solar_hours": "hours_out.tif",
                     "Aspect": "aspect_out.tif",
                     "Slope": "slope_out.tif",
                 },
-                context=object(),
+                context=context,
                 model_feedback=object(),
             )
 
         self.assertEqual(len(grass_calls), 1)
+        self.assertEqual(rastercalc_calls[0]["CRS"].authid(), "EPSG:28992")
+        self.assertIs(rastercalc_calls[0]["EXTENT"], map_extent)
         self.assertEqual(grass_calls[0]["day"], 172)
-        self.assertEqual(result["Shade_intensity"], "shade.tif")
-        self.assertEqual(result["Solar_hours"], "hours.tif")
+        self.assertIs(grass_calls[0]["GRASS_REGION_PARAMETER"], map_extent)
+        self.assertEqual(grass_calls[0]["glob_rad"], _DummyProcessing.TEMPORARY_OUTPUT)
+        self.assertEqual(grass_calls[0]["insol_time"], _DummyProcessing.TEMPORARY_OUTPUT)
+        self.assertEqual(len(translate_calls), 2)
+        self.assertEqual(translate_calls[0]["INPUT"], "raw_shade.tif")
+        self.assertEqual(translate_calls[0]["OUTPUT"], "shade_out.tif")
+        self.assertEqual(translate_calls[0]["TARGET_CRS"].authid(), "EPSG:28992")
+        self.assertEqual(translate_calls[1]["INPUT"], "raw_hours.tif")
+        self.assertEqual(translate_calls[1]["OUTPUT"], "hours_out.tif")
+        self.assertEqual(translate_calls[1]["TARGET_CRS"].authid(), "EPSG:28992")
+        self.assertEqual(result["Shade_intensity"], "shade_out.tif")
+        self.assertEqual(result["Solar_hours"], "hours_out.tif")
+        self.assertEqual(context.layers_to_load["shade_out.tif"].name, "Shade intensity")
+        self.assertEqual(context.layers_to_load["hours_out.tif"].name, "Solar hours")
 
 
 if __name__ == "__main__":

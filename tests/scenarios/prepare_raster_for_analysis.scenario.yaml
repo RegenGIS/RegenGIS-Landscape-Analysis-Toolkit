@@ -1,0 +1,25 @@
+version: 1
+scenario_id: prepare_raster_for_analysis_reproject
+algorithm_id: regengis_toolbox:prepare_raster_for_analysis
+description: Prepare a raster for analysis and validate output CRS against OUTPUT_TARGET_CRS.
+status: template
+requires:
+  qgis_runtime: true
+inputs:
+  INPUT:
+    kind: raster
+    path: ${FIXTURE_ROOT}/reprojection/wgs84_input.tif
+    crs: EPSG:4326
+parameters:
+  AUTO_SELECT_ANALYSIS_CRS: true
+  TARGET_CRS: null
+  ANALYSIS_EXTENT: null
+outputs:
+  OUTPUT:
+    path: ${OUTPUT_ROOT}/prepare_raster_for_analysis/prepared.tif
+execution:
+  mode: qgis_process_or_pyqgis
+contract: ../contracts/prepare_raster_for_analysis.contract.yaml
+result_capture:
+  format: json
+  path: ${OUTPUT_ROOT}/prepare_raster_for_analysis/result.json

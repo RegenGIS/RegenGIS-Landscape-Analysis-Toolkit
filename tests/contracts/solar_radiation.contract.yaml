@@ -1,0 +1,34 @@
+version: 1
+contract_id: solar_radiation
+algorithm_id: regengis_toolbox:solar_radiation
+display_name: Solar Radiation
+group: Microclimates
+kind: multi_raster
+crs_rule:
+  type: equals_input
+  input_parameter: digital_surface_model_dsm_or_digital_terrain_model_dtm
+outputs:
+  Aspect:
+    kind: raster
+    required: true
+    min_band_count: 1
+    readable: true
+  Slope:
+    kind: raster
+    required: true
+    min_band_count: 1
+    readable: true
+  Shade_intensity:
+    kind: raster
+    required: false
+    min_band_count: 1
+    readable: true
+  Solar_hours:
+    kind: raster
+    required: true
+    min_band_count: 1
+    readable: true
+cross_output_rules:
+  same_crs: true
+  same_dimensions: true
+  same_extent: true

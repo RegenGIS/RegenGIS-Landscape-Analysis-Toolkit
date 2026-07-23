@@ -5,9 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 import tempfile
+from pathlib import Path
+import zipfile
+import xml.etree.ElementTree as ET
 
 from .selector import (
     AutoCrsRecommendation,
+    _is_metric_projected_crs,
+    _proj_string_for_crs,
     qgis_crs_from_recommendation,
     recommend_metric_crs_for_extent,
     recommend_metric_crs_for_layer,
@@ -21,6 +26,7 @@ try:
         QgsCoordinateTransform,
         QgsProcessing,
         QgsProject,
+        QgsRectangle,
         QgsRasterFileWriter,
         QgsRasterPipe,
     )
@@ -36,6 +42,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - allows import outside Q
     QgsCoordinateTransform = None
     QgsProcessing = None
     QgsProject = None
+    QgsRectangle = None
     QgsRasterFileWriter = None
     QgsRasterPipe = None
     iface = None
@@ -57,10 +64,88 @@ def _require_qgis(function_name: str) -> None:
         QgsCoordinateReferenceSystem is None
         or QgsCoordinateTransform is None
         or QgsProject is None
+        or QgsRectangle is None
         or QgsRasterFileWriter is None
         or QgsRasterPipe is None
     ):
         raise RuntimeError(f"{function_name} requires a QGIS runtime with PyQGIS available.")
+
+
+def _project_file_path() -> Path | None:
+    if QgsProject is None:
+        return None
+    project = QgsProject.instance()
+    if project is None or not hasattr(project, "fileName"):
+        return None
+    file_name = project.fileName()
+    if not file_name:
+        return None
+    path = Path(file_name)
+    return path if path.exists() else None
+
+
+def _parse_project_mapcanvas_extent():
+    _require_qgis("_parse_project_mapcanvas_extent")
+    project_path = _project_file_path()
+    if project_path is None:
+        return None, None
+
+    try:
+        if project_path.suffix.lower() == ".qgz":
+            with zipfile.ZipFile(project_path) as archive:
+                project_member = next((name for name in archive.namelist() if name.endswith('.qgs')), None)
+                if project_member is None:
+                    return None, None
+                raw_xml = archive.read(project_member)
+        else:
+            raw_xml = project_path.read_bytes()
+        root = ET.fromstring(raw_xml)
+    except Exception:
+        return None, None
+
+    mapcanvas = root.find('.//mapcanvas')
+    if mapcanvas is None:
+        return None, None
+
+    extent_node = mapcanvas.find('./extent')
+    if extent_node is None:
+        return None, None
+
+    xmin_text = extent_node.findtext('xmin')
+    ymin_text = extent_node.findtext('ymin')
+    xmax_text = extent_node.findtext('xmax')
+    ymax_text = extent_node.findtext('ymax')
+    if xmin_text is None or ymin_text is None or xmax_text is None or ymax_text is None:
+        return None, None
+
+    try:
+        xmin = float(xmin_text)
+        ymin = float(ymin_text)
+        xmax = float(xmax_text)
+        ymax = float(ymax_text)
+    except ValueError:
+        return None, None
+
+    if xmax <= xmin or ymax <= ymin:
+        return None, None
+
+    extent = QgsRectangle(xmin, ymin, xmax, ymax)
+
+    destination_crs = None
+    wkt = mapcanvas.findtext('./destinationsrs/spatialrefsys/wkt')
+    if wkt:
+        destination_crs = QgsCoordinateReferenceSystem()
+        if hasattr(destination_crs, 'createFromWkt'):
+            if not destination_crs.createFromWkt(wkt):
+                destination_crs = None
+        elif not destination_crs.isValid():
+            destination_crs = None
+
+    if destination_crs is None or not destination_crs.isValid():
+        project = QgsProject.instance()
+        destination_crs = project.crs() if project is not None and hasattr(project, 'crs') else None
+
+    return extent, destination_crs
 
 
 def _require_processing(function_name: str) -> None:
@@ -84,6 +169,55 @@ def extent_in_wgs84_for_layer(layer):
     return transform.transformBoundingBox(extent, handle180Crossover=True)
 
 
+def _epsg_from_authid(authid: str) -> int | None:
+    if not authid.startswith("EPSG:"):
+        return None
+    try:
+        return int(authid.split(":", 1)[1])
+    except Exception:
+        return None
+
+
+def _is_utm_or_ups_authid_or_description(authid: str, description: str) -> bool:
+    lowered = f"{authid} {description}".lower()
+    return "utm" in lowered or "ups" in lowered
+
+
+def _source_crs(layer):
+    if layer is None:
+        raise ValueError("Layer is required.")
+    crs = layer.crs()
+    if crs is None or not hasattr(crs, "isValid") or not crs.isValid():
+        raise ValueError(
+            "Input raster CRS is missing or invalid. Assign the correct source CRS before using RegenGIS AutoCRS tools."
+        )
+    return crs
+
+
+def _existing_metric_crs_recommendation(layer, feedback=None) -> AutoCrsRecommendation | None:
+    crs = _source_crs(layer)
+    if not _is_metric_projected_crs(crs):
+        return None
+
+    authid = crs.authid() or ""
+    description = crs.description() or authid or "Projected metric CRS"
+    recommendation = AutoCrsRecommendation(
+        authid=authid,
+        description=description,
+        proj4=_proj_string_for_crs(crs),
+        epsg=_epsg_from_authid(authid),
+        strategy="existing_metric_crs",
+        distortion_ppm=0.0,
+        is_utm_or_ups=_is_utm_or_ups_authid_or_description(authid, description),
+    )
+    if feedback is not None and hasattr(feedback, "pushInfo"):
+        feedback.pushInfo(
+            "Input raster already uses a valid projected metric CRS, so RegenGIS is keeping that CRS for analysis: "
+            f"{recommendation.authid or recommendation.description}."
+        )
+    return recommendation
+
+
 def recommend_analysis_crs_for_layer(layer, feedback=None) -> AutoCrsRecommendation:
     """Recommend an analysis CRS from the smallest intended working area.
 
@@ -96,25 +230,31 @@ def recommend_analysis_crs_for_layer(layer, feedback=None) -> AutoCrsRecommendat
     This avoids letting a very large service extent dominate CRS choice when the
     user is clearly working within a smaller map window.
     """
+    _source_crs(layer)
+
+    map_extent = _current_map_extent_in_layer_crs(layer, feedback=feedback)
+    if _extent_is_usable(map_extent):
+        if feedback is not None and hasattr(feedback, "pushInfo"):
+            feedback.pushInfo(
+                "RegenGIS is using the current map extent to choose the analysis CRS, so broad source projections do not dominate local analysis."
+            )
+        map_extent_wgs84 = _transform_extent(
+            map_extent,
+            layer.crs(),
+            QgsCoordinateReferenceSystem.fromEpsgId(4326),
+        )
+        return recommend_metric_crs_for_extent(map_extent_wgs84, feedback=feedback)
+
     provider_type = _layer_provider_type(layer)
     if provider_type == "wcs":
-        map_extent = _current_map_extent_in_layer_crs(layer, feedback=feedback)
-        if _extent_is_usable(map_extent):
-            if feedback is not None and hasattr(feedback, "pushInfo"):
-                feedback.pushInfo(
-                    "Input raster comes from a WCS provider, so RegenGIS is using the current map extent instead of the full layer extent to choose the analysis CRS."
-                )
-            map_extent_wgs84 = _transform_extent(
-                map_extent,
-                layer.crs(),
-                QgsCoordinateReferenceSystem.fromEpsgId(4326),
-            )
-            return recommend_metric_crs_for_extent(map_extent_wgs84, feedback=feedback)
-
         if feedback is not None and hasattr(feedback, "pushInfo"):
             feedback.pushInfo(
                 "Input raster comes from a WCS provider, but the current map extent was not available, so RegenGIS is falling back to the full layer extent for analysis CRS selection."
             )
+
+    existing_metric = _existing_metric_crs_recommendation(layer, feedback=feedback)
+    if existing_metric is not None:
+        return existing_metric
 
     return recommend_metric_crs_for_layer(layer, feedback=feedback)
 
@@ -223,30 +363,41 @@ def _transform_extent(extent, source_crs, target_crs):
 
 def _current_map_extent_in_layer_crs(layer, feedback=None):
     _require_qgis("_current_map_extent_in_layer_crs")
-    if iface is None or not hasattr(iface, "mapCanvas"):
-        return None
+    canvas = iface.mapCanvas() if iface is not None and hasattr(iface, "mapCanvas") else None
 
-    canvas = iface.mapCanvas()
-    if canvas is None:
-        return None
+    if canvas is not None:
+        canvas_extent = canvas.extent() if hasattr(canvas, "extent") else None
+        if _extent_is_usable(canvas_extent):
+            map_settings = canvas.mapSettings() if hasattr(canvas, "mapSettings") else None
+            canvas_crs = map_settings.destinationCrs() if map_settings is not None and hasattr(map_settings, "destinationCrs") else None
+            try:
+                extent_in_layer_crs = _transform_extent(canvas_extent, canvas_crs, layer.crs())
+            except Exception as exc:
+                if feedback is not None and hasattr(feedback, "pushInfo"):
+                    feedback.pushInfo(
+                        "Could not transform current map extent into the raster CRS, so RegenGIS will try the stored project map extent next. "
+                        f"Details: {exc}"
+                    )
+            else:
+                if _extent_is_usable(extent_in_layer_crs):
+                    return extent_in_layer_crs
 
-    canvas_extent = canvas.extent() if hasattr(canvas, "extent") else None
-    if not _extent_is_usable(canvas_extent):
-        return None
-
-    map_settings = canvas.mapSettings() if hasattr(canvas, "mapSettings") else None
-    canvas_crs = map_settings.destinationCrs() if map_settings is not None and hasattr(map_settings, "destinationCrs") else None
-    try:
-        extent_in_layer_crs = _transform_extent(canvas_extent, canvas_crs, layer.crs())
-    except Exception as exc:
+    project_extent, project_extent_crs = _parse_project_mapcanvas_extent()
+    if _extent_is_usable(project_extent):
+        try:
+            extent_in_layer_crs = _transform_extent(project_extent, project_extent_crs, layer.crs())
+        except Exception as exc:
+            if feedback is not None and hasattr(feedback, "pushInfo"):
+                feedback.pushInfo(
+                    "Could not transform the stored project map extent into the raster CRS, so RegenGIS will fall back to the full layer extent. "
+                    f"Details: {exc}"
+                )
+            return None
         if feedback is not None and hasattr(feedback, "pushInfo"):
-            feedback.pushInfo(
-                "Could not transform current map extent into the raster CRS, so RegenGIS will fall back to the full layer extent. "
-                f"Details: {exc}"
-            )
-        return None
+            feedback.pushInfo("Using the stored map extent from the current QGIS project for headless processing.")
+        return extent_in_layer_crs if _extent_is_usable(extent_in_layer_crs) else None
 
-    return extent_in_layer_crs if _extent_is_usable(extent_in_layer_crs) else None
+    return None
 
 
 def _resolve_materialization_extent(layer, requested_extent=None, requested_extent_crs=None, feedback=None):
@@ -315,10 +466,21 @@ def _write_layer_to_temp_geotiff(layer, context, feedback, *, extent=None) -> st
         else QgsProject.instance().transformContext()
     )
     target_extent = extent if _extent_is_usable(extent) else layer.extent()
+    output_width = layer.width()
+    output_height = layer.height()
+    pixel_size_x, pixel_size_y = _pixel_size(layer)
+    pixel_size_x = abs(pixel_size_x) if pixel_size_x is not None else None
+    pixel_size_y = abs(pixel_size_y) if pixel_size_y is not None else None
+    if target_extent is not None and _extent_is_usable(target_extent) and pixel_size_x and pixel_size_y:
+        extent_width = target_extent.width() if hasattr(target_extent, "width") else None
+        extent_height = target_extent.height() if hasattr(target_extent, "height") else None
+        if extent_width is not None and extent_height is not None:
+            output_width = max(1, int(round(extent_width / pixel_size_x)))
+            output_height = max(1, int(round(extent_height / pixel_size_y)))
     result = writer.writeRaster(
         pipe,
-        layer.width(),
-        layer.height(),
+        output_width,
+        output_height,
         target_extent,
         layer.crs(),
         transform_context,
@@ -418,6 +580,8 @@ def _materialize_gdal_input(layer, context, feedback, requested_extent=None, req
 def _copy_raster_output(layer, context, feedback, output):
     _require_processing("_copy_raster_output")
     output_value = temporary_output_value(output, QgsProcessing.TEMPORARY_OUTPUT if QgsProcessing is not None else "TEMPORARY_OUTPUT")
+    layer_crs = layer.crs() if layer is not None and hasattr(layer, "crs") else None
+    target_crs = layer_crs if layer_crs is not None and hasattr(layer_crs, "isValid") and layer_crs.isValid() else None
     alg_params = {
         "COPY_SUBDATASETS": False,
         "DATA_TYPE": 0,
@@ -426,7 +590,7 @@ def _copy_raster_output(layer, context, feedback, output):
         "NODATA": None,
         "OPTIONS": "",
         "OUTPUT": output_value,
-        "TARGET_CRS": None,
+        "TARGET_CRS": target_crs,
     }
     result = processing.run(
         "gdal:translate",

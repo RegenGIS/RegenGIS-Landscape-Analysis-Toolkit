@@ -11,8 +11,13 @@ from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
-from qgis.core import QgsExpression
 import processing
+
+
+def _current_map_extent_in_layer_crs(layer, feedback=None):
+    from regengis_processing_plugin.autocrs.prepare import _current_map_extent_in_layer_crs as helper
+
+    return helper(layer, feedback=feedback)
 
 
 class WaterFlow(QgsProcessingAlgorithm):
@@ -27,13 +32,26 @@ class WaterFlow(QgsProcessingAlgorithm):
         feedback = QgsProcessingMultiStepFeedback(4, model_feedback)
         results = {}
         outputs = {}
+        input_layer = self.parameterAsRasterLayer(parameters, 'digital_terrain_model_dtm', context)
+        if input_layer is None:
+            raise ValueError('Input raster layer is required.')
+
+        input_crs = input_layer.crs()
+        working_extent = _current_map_extent_in_layer_crs(input_layer, feedback=feedback)
+        if working_extent is not None:
+            if hasattr(feedback, 'pushInfo'):
+                feedback.pushInfo('RegenGIS is clipping the DTM to the current map extent, transformed into the raster CRS.')
+        else:
+            working_extent = input_layer.extent()
+            if hasattr(feedback, 'pushInfo'):
+                feedback.pushInfo('Current map extent was unavailable, so RegenGIS is clipping the DTM to the full raster extent.')
 
         # Raster calculator extract
         alg_params = {
             'CELL_SIZE': None,
-            'CRS': None,
+            'CRS': input_crs,
             'EXPRESSION': '"A@1"',
-            'EXTENT': QgsExpression(' @map_extent ').evaluate(),
+            'EXTENT': working_extent,
             'LAYERS': parameters['digital_terrain_model_dtm'],
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
@@ -69,7 +87,7 @@ class WaterFlow(QgsProcessingAlgorithm):
             'GRASS_RASTER_FORMAT_META': None,
             'GRASS_RASTER_FORMAT_OPT': None,
             'GRASS_REGION_CELLSIZE_PARAMETER': 0,
-            'GRASS_REGION_PARAMETER': None,
+            'GRASS_REGION_PARAMETER': working_extent,
             'GRASS_VECTOR_DSCO': None,
             'GRASS_VECTOR_EXPORT_NOCAT': False,
             'GRASS_VECTOR_LCO': None,
@@ -77,11 +95,10 @@ class WaterFlow(QgsProcessingAlgorithm):
             'barrier': None,
             'bound': None,
             'elevation': outputs['FillNodata']['OUTPUT'],
-            'flowlength': '././flow_path_length',
-            'flowline': '././flow_line',
-            'skip': None,
             'flowaccumulation': QgsProcessing.TEMPORARY_OUTPUT,
-            'flowlength': QgsProcessing.TEMPORARY_OUTPUT
+            'flowlength': QgsProcessing.TEMPORARY_OUTPUT,
+            'flowline': QgsProcessing.TEMPORARY_OUTPUT,
+            'skip': None
         }
         outputs['Rflow'] = processing.run('grass:r.flow', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
 
@@ -92,9 +109,9 @@ class WaterFlow(QgsProcessingAlgorithm):
         # Raster calculator log10
         alg_params = {
             'CELL_SIZE': None,
-            'CRS': None,
+            'CRS': input_crs,
             'EXPRESSION': ' log10 ( "A@1")',
-            'EXTENT': None,
+            'EXTENT': working_extent,
             'LAYERS': outputs['Rflow']['flowaccumulation'],
             'OUTPUT': parameters['Water_flow']
         }

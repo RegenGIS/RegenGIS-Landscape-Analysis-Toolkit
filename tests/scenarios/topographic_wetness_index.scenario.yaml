@@ -1,0 +1,20 @@
+version: 1
+scenario_id: topographic_wetness_index_smallsite
+algorithm_id: regengis_toolbox:topographic_wetness_index
+description: Generate a TWI raster from a small DTM fixture.
+status: template
+requires:
+  qgis_runtime: true
+  grass_provider: true
+inputs:
+  digital_terrain_model_dtm:
+    kind: raster
+    path: ${FIXTURE_ROOT}/dtm/smallsite_rdnew_dtm.tif
+    crs: EPSG:28992
+outputs:
+  TopographicWetnessIndexTwi:
+    path: ${OUTPUT_ROOT}/topographic_wetness_index/twi.tif
+execution:
+  mode: qgis_process
+  working_extent_behavior: current_map_extent_or_full_extent
+contract: ../contracts/topographic_wetness_index.contract.yaml

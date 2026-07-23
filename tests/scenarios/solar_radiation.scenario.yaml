@@ -1,0 +1,28 @@
+version: 1
+scenario_id: solar_radiation_rdnew
+algorithm_id: regengis_toolbox:solar_radiation
+description: Generate slope, aspect, shade intensity, and solar hours rasters from a DSM/DTM fixture.
+status: template
+requires:
+  qgis_runtime: true
+  grass_provider: true
+inputs:
+  digital_surface_model_dsm_or_digital_terrain_model_dtm:
+    kind: raster
+    path: ${FIXTURE_ROOT}/dsm/solar_rdnew_dsm.tif
+    crs: EPSG:28992
+parameters:
+  date: '2026-06-21'
+outputs:
+  Aspect:
+    path: ${OUTPUT_ROOT}/solar_radiation/aspect.tif
+  Slope:
+    path: ${OUTPUT_ROOT}/solar_radiation/slope.tif
+  Shade_intensity:
+    path: ${OUTPUT_ROOT}/solar_radiation/shade_intensity.tif
+  Solar_hours:
+    path: ${OUTPUT_ROOT}/solar_radiation/solar_hours.tif
+execution:
+  mode: qgis_process
+  working_extent_behavior: current_map_extent_or_full_extent
+contract: ../contracts/solar_radiation.contract.yaml

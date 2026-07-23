@@ -1,0 +1,12 @@
+version: 1
+contract_id: about_regengis
+algorithm_id: regengis_toolbox:about_regengis
+display_name: About RegenGIS
+group: root
+kind: metadata
+headless_default: false
+required_result_keys:
+  OPENED:
+    type: boolean
+    required: true
+    equals: true

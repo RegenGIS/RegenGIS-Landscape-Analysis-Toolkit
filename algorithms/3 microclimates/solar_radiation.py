@@ -12,11 +12,11 @@ from datetime import date, datetime
 
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
+from qgis.core import QgsProcessingContext
 from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterDateTime
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
-from qgis.core import QgsExpression
 import processing
 
 
@@ -47,6 +47,56 @@ def _day_of_year(value) -> int:
     return _coerce_python_date(value).timetuple().tm_yday
 
 
+def _current_map_extent_in_layer_crs(layer, feedback=None):
+    from regengis_processing_plugin.autocrs.prepare import _current_map_extent_in_layer_crs as helper
+
+    return helper(layer, feedback=feedback)
+
+
+def _translate_raster_to_input_crs(input_raster, output_raster, input_crs, context, feedback):
+    output_value = output_raster or QgsProcessing.TEMPORARY_OUTPUT
+    result = processing.run(
+        'gdal:translate',
+        {
+            'COPY_SUBDATASETS': False,
+            'DATA_TYPE': 0,
+            'EXTRA': '',
+            'INPUT': input_raster,
+            'NODATA': None,
+            'OPTIONS': '',
+            'OUTPUT': output_value,
+            'TARGET_CRS': input_crs,
+        },
+        context=context,
+        feedback=feedback,
+        is_child_algorithm=True,
+    )
+    return result['OUTPUT']
+
+
+def _set_layer_name_on_completion(context, output_path, layer_name):
+    if not output_path or context is None:
+        return
+
+    try:
+        details = context.layerToLoadOnCompletionDetails(output_path)
+    except Exception:
+        details = None
+
+    if details is None:
+        try:
+            details = QgsProcessingContext.LayerDetails(layer_name, None, '')
+        except Exception:
+            return
+
+    details.name = layer_name
+
+    try:
+        context.addLayerToLoadOnCompletion(output_path, details)
+    except Exception:
+        return
+
+
 class SolarRadiation(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
@@ -65,13 +115,26 @@ class SolarRadiation(QgsProcessingAlgorithm):
         outputs = {}
         analysis_date = self.parameterAsDateTime(parameters, 'date', context)
         analysis_day = _day_of_year(analysis_date)
+        input_layer = self.parameterAsRasterLayer(parameters, 'digital_surface_model_dsm_or_digital_terrain_model_dtm', context)
+        if input_layer is None:
+            raise ValueError('Input raster layer is required.')
+
+        input_crs = input_layer.crs()
+        working_extent = _current_map_extent_in_layer_crs(input_layer, feedback=feedback)
+        if working_extent is not None:
+            if hasattr(feedback, 'pushInfo'):
+                feedback.pushInfo('RegenGIS is clipping the DSM/DTM to the current map extent, transformed into the raster CRS.')
+        else:
+            working_extent = input_layer.extent()
+            if hasattr(feedback, 'pushInfo'):
+                feedback.pushInfo('Current map extent was unavailable, so RegenGIS is clipping the DSM/DTM to the full raster extent.')
 
         # Raster calculator
         alg_params = {
             'CELL_SIZE': None,
-            'CRS': None,
+            'CRS': input_crs,
             'EXPRESSION': '"A@1"',
-            'EXTENT': QgsExpression(' @map_extent ').evaluate(),
+            'EXTENT': working_extent,
             'LAYERS': parameters['digital_surface_model_dsm_or_digital_terrain_model_dtm'],
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
@@ -131,7 +194,7 @@ class SolarRadiation(QgsProcessingAlgorithm):
             'GRASS_RASTER_FORMAT_META': None,
             'GRASS_RASTER_FORMAT_OPT': None,
             'GRASS_REGION_CELLSIZE_PARAMETER': 0,
-            'GRASS_REGION_PARAMETER': None,
+            'GRASS_REGION_PARAMETER': working_extent,
             'albedo': None,
             'albedo_value': None,
             'aspect': outputs['Aspect']['OUTPUT'],
@@ -152,12 +215,27 @@ class SolarRadiation(QgsProcessingAlgorithm):
             'slope': outputs['Slope']['OUTPUT'],
             'slope_value': 0,
             'step': 0.5,
-            'glob_rad': parameters['Shade_intensity'],
-            'insol_time': parameters['Solar_hours']
+            'glob_rad': QgsProcessing.TEMPORARY_OUTPUT,
+            'insol_time': QgsProcessing.TEMPORARY_OUTPUT
         }
         outputs['Rsuninsoltime'] = processing.run('grass:r.sun.insoltime', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-        results['Shade_intensity'] = outputs['Rsuninsoltime']['glob_rad']
-        results['Solar_hours'] = outputs['Rsuninsoltime']['insol_time']
+        results['Shade_intensity'] = _translate_raster_to_input_crs(
+            outputs['Rsuninsoltime']['glob_rad'],
+            parameters['Shade_intensity'],
+            input_crs,
+            context,
+            feedback,
+        )
+        _set_layer_name_on_completion(context, results['Shade_intensity'], 'Shade intensity')
+
+        results['Solar_hours'] = _translate_raster_to_input_crs(
+            outputs['Rsuninsoltime']['insol_time'],
+            parameters['Solar_hours'],
+            input_crs,
+            context,
+            feedback,
+        )
+        _set_layer_name_on_completion(context, results['Solar_hours'], 'Solar hours')
         return results
 
     def name(self):

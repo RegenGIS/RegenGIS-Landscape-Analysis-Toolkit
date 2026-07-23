@@ -1,0 +1,20 @@
+version: 1
+scenario_id: water_flow_smallsite
+algorithm_id: regengis_toolbox:water_flow
+description: Generate a water flow raster from a small DTM fixture.
+status: template
+requires:
+  qgis_runtime: true
+  grass_provider: true
+inputs:
+  digital_terrain_model_dtm:
+    kind: raster
+    path: ${FIXTURE_ROOT}/dtm/smallsite_rdnew_dtm.tif
+    crs: EPSG:28992
+outputs:
+  Water_flow:
+    path: ${OUTPUT_ROOT}/water_flow/water_flow.tif
+execution:
+  mode: qgis_process
+  working_extent_behavior: current_map_extent_or_full_extent
+contract: ../contracts/water_flow.contract.yaml
