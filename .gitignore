@@ -28,6 +28,7 @@ Thumbs.db
 .hermes/**
 .autocrs-cache/
 .autocrs-cache/**
+__pycache__
 
 # Release artifacts (kept out of source)
 *.zip

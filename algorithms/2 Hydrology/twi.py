@@ -116,10 +116,6 @@ class TopographicWetnessIndex(QgsProcessingAlgorithm):
 <h2>Input parameters</h2>
 <h3>Digital Terrain Model (DTM)</h3>
 <p>A Digital Terrain Model (DTM) is a grid-based map in which each cell stores the height of the bare ground at that location. Unlike models that may include trees or buildings, a DTM represents the land surface itself. In simple terms, it is a digital 3D picture of the terrain, showing hills, slopes, valleys, and flat areas.</p>
-<h2>Examples</h2>
-<p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
-<html><head><meta name="qrichtext" content="1" /><style type="text/css">
-p, li { white-space: pre-wrap; }
 </style></head><body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;">
 <p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><br /></p></body></html></p><br></body></html>"""
 
