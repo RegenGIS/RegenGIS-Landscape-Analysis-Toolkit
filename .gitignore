@@ -45,4 +45,6 @@ __pycache__
 tests/output/
 tests/output/**
 test/
+tests/
+tests/**
 algorithms/TEST/
