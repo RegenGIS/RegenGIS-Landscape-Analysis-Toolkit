@@ -113,5 +113,5 @@ class CommunityDialog(QDialog):
         no_btn.clicked.connect(self.reject)
 
     def _on_join_clicked(self):
-        QDesktopServices.openUrl(QUrl("https://www.regengis.com/join-the-regengis-community"))
+        QDesktopServices.openUrl(QUrl("https://www.regengis.com/account/registration/new"))
         self.accept()
