@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib.util
 import inspect
+import json
 import logging
 import sys
 import traceback
@@ -38,6 +39,7 @@ class ModelToolboxProvider(QgsProcessingProvider):
     def __init__(self):
         super().__init__()
         self._load_issues: list[AlgorithmLoadIssue] = []
+        self._discovery: dict[str, object] = {}
 
     def id(self) -> str:
         return "regengis_toolbox"
@@ -68,7 +70,13 @@ class ModelToolboxProvider(QgsProcessingProvider):
         """
         self._load_issues = []
         algorithms_dir = Path(algorithms_pkg.__file__).resolve().parent
-        for module_path in sorted(self._iter_algorithm_files(algorithms_dir)):
+        algorithm_files = sorted(self._iter_algorithm_files(algorithms_dir))
+        self._discovery = {
+            "algorithms_dir": str(algorithms_dir),
+            "algorithms_dir_exists": algorithms_dir.is_dir(),
+            "algorithm_files": [str(path) for path in algorithm_files],
+        }
+        for module_path in algorithm_files:
             group_prefix = self._group_prefix_for_path(algorithms_dir, module_path)
             self._load_algorithm_from_path(module_path, group_prefix)
 
@@ -81,9 +89,26 @@ class ModelToolboxProvider(QgsProcessingProvider):
                 self._load_issues[0].error_message,
             )
 
+        try:
+            from .plugin import _write_load_status
+
+            _write_load_status(
+                stage="loadAlgorithms",
+                provider_id=self.id(),
+                alg_count=len(self.algorithms()),
+                issue_count=len(self._load_issues),
+                discovery=self.discovery(),
+            )
+        except Exception:
+            logger.debug("Unable to write RegenGIS load status file", exc_info=True)
+
     def load_issues(self) -> list[AlgorithmLoadIssue]:
         """Return structured diagnostics for algorithm load failures."""
         return list(self._load_issues)
+
+    def discovery(self) -> dict[str, object]:
+        """Return the exact source-discovery state from the latest provider load."""
+        return dict(self._discovery)
 
     def _iter_algorithm_files(self, algorithms_dir: Path):
         """Yield candidate algorithm files from disk."""
