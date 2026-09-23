@@ -12,6 +12,7 @@ from qgis.core import QgsProcessingContext
 from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
+from qgis.core import QgsProcessingUtils
 import processing
 
 
@@ -76,7 +77,7 @@ class WaterFlow(QgsProcessingAlgorithm):
             'CRS': input_crs,
             'EXPRESSION': '"A@1"',
             'EXTENT': working_extent,
-            'LAYERS': parameters['digital_terrain_model_dtm'],
+            'LAYERS': [parameters['digital_terrain_model_dtm']],
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         outputs['RasterCalculatorExtract'] = processing.run('native:modelerrastercalc', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
@@ -103,6 +104,7 @@ class WaterFlow(QgsProcessingAlgorithm):
             return {}
 
         # r.flow
+        flowaccumulation_output = QgsProcessingUtils.generateTempFilename('regengis_flowaccumulation_grass.tif')
         alg_params = {
             '-3': False,
             '-m': False,
@@ -119,7 +121,7 @@ class WaterFlow(QgsProcessingAlgorithm):
             'barrier': None,
             'bound': None,
             'elevation': outputs['FillNodata']['OUTPUT'],
-            'flowaccumulation': QgsProcessing.TEMPORARY_OUTPUT,
+            'flowaccumulation': flowaccumulation_output,
             'flowlength': QgsProcessing.TEMPORARY_OUTPUT,
             'flowline': QgsProcessing.TEMPORARY_OUTPUT,
             'skip': None
@@ -130,13 +132,34 @@ class WaterFlow(QgsProcessingAlgorithm):
         if feedback.isCanceled():
             return {}
 
+        # Materialize the GRASS result before passing it to modelerrastercalc.
+        # LAYERS is a list of raster sources in both QGIS 3 and QGIS 4; the
+        # source must be an existing file, not a vanished GRASS temp claim.
+        flowaccumulation_materialized = QgsProcessingUtils.generateTempFilename('regengis_flowaccumulation.tif')
+        processing.run(
+            'gdal:translate',
+            {
+                'COPY_SUBDATASETS': False,
+                'DATA_TYPE': 0,
+                'EXTRA': '',
+                'INPUT': outputs['Rflow']['flowaccumulation'],
+                'NODATA': None,
+                'OPTIONS': '',
+                'OUTPUT': flowaccumulation_materialized,
+                'TARGET_CRS': input_crs,
+            },
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
+        )
+
         # Raster calculator log10
         alg_params = {
             'CELL_SIZE': None,
             'CRS': input_crs,
             'EXPRESSION': 'log10("A@1" + 1)',
             'EXTENT': working_extent,
-            'LAYERS': outputs['Rflow']['flowaccumulation'],
+            'LAYERS': [flowaccumulation_materialized],
             'OUTPUT': parameters['Water_flow']
         }
         outputs['RasterCalculatorLog10'] = processing.run('native:modelerrastercalc', alg_params, context=context, feedback=feedback, is_child_algorithm=True)

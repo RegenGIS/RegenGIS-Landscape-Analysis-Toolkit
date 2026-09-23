@@ -28,6 +28,50 @@ A QGIS Processing provider and toolbox with spatial analysis tools to support de
   3. export the layer afterwards to GeoPackage, Shapefile or another file format if needed
 - Do **not** rely on direct `.gpkg` output from `Height Contours` as a production-safe path until this provider/runtime issue is resolved.
 
+## Headless regression harness (Milestone 0)
+
+`headless_test_harness.py` is the versioned provider-loading entry point. It uses a
+headless `QgsApplication`, initializes Processing, registers provider
+`regengis_toolbox`, and writes `regengis-headless-report.json` below the explicit
+artifact root. The artifact root must be outside the plugin source directory.
+`--plugin-root` is required explicitly; the harness never falls back to the
+source directory, so a missing mount cannot be hidden. `--input-root` must contain
+`regengis-fixture-contract.json` with a `project` path pointing to an existing
+project file inside that root. Missing, empty, or invalid fixture roots are
+`blocked` and exit 2; this is a diagnostic, not a passing fixture run. Provider
+import, registration, or algorithm-load failures are `failed` and exit 1.
+
+The harness loads a temporary external copy of the plugin so the legacy provider
+load-status hooks cannot write into a read-only plugin mount. The report records
+that redirection in its diagnostic; no source status file is required.
+
+The unit tests do not require QGIS:
+
+    python3 -m unittest -v test_headless_harness.py test_headless_integration.py
+
+Future runner commands (placeholders only; no runner access is assumed):
+
+    QT_QPA_PLATFORM=offscreen /path/to/qgis3/python \\
+      headless_test_harness.py \\
+      --plugin-root /mounts/regengis_processing_plugin \\
+      --input-root /mounts/regengis_testdata \\
+      --artifact-root /mounts/regengis_artifacts \\
+      --qgis-prefix-path /path/to/qgis3/prefix
+
+    QT_QPA_PLATFORM=offscreen /path/to/qgis4/python \\
+      headless_test_harness.py \\
+      --plugin-root /mounts/regengis_processing_plugin \\
+      --input-root /mounts/regengis_testdata \\
+      --artifact-root /mounts/regengis_artifacts \\
+      --qgis-prefix-path /path/to/qgis4/prefix
+
+For both future runs, mount the installed or checked-out plugin at the
+`--plugin-root` placeholder, real test data at `--input-root`, and a writable
+external directory at `--artifact-root`. The intended versions are QGIS 3
+3.44.14 and QGIS 4 4.2.2. Set `REGENGIS_RUN_QGIS_INTEGRATION=1` when invoking
+the optional integration-test entry point inside the corresponding QGIS Python
+runtime; it is skipped otherwise.
+
 ## Support & Contribution
 
 - Website: https://www.regengis.com

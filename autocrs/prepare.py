@@ -378,43 +378,67 @@ def _transform_extent(extent, source_crs, target_crs):
     return transform.transformBoundingBox(extent, handle180Crossover=True)
 
 
+def _intersection_with_layer_extent(extent, layer_extent):
+    """Return the usable overlap, never a rectangle outside the input raster."""
+    if not _extent_is_usable(extent) or not _extent_is_usable(layer_extent):
+        return None
+    try:
+        intersection = QgsRectangle(
+            max(extent.xMinimum(), layer_extent.xMinimum()),
+            max(extent.yMinimum(), layer_extent.yMinimum()),
+            min(extent.xMaximum(), layer_extent.xMaximum()),
+            min(extent.yMaximum(), layer_extent.yMaximum()),
+        )
+    except Exception:
+        # Keep compatibility with test doubles and older bindings exposing only
+        # QRect-style intersection helpers.
+        intersect = getattr(extent, "intersect", None)
+        intersection = intersect(layer_extent) if callable(intersect) else None
+    return intersection if _extent_is_usable(intersection) else None
+
+
 def _current_map_extent_in_layer_crs(layer, feedback=None):
     _require_qgis("_current_map_extent_in_layer_crs")
+    layer_extent = layer.extent()
     canvas = iface.mapCanvas() if iface is not None and hasattr(iface, "mapCanvas") else None
+
+    def safe_candidate(extent, extent_crs, source_label):
+        try:
+            transformed = _transform_extent(extent, extent_crs, layer.crs())
+        except Exception as exc:
+            if feedback is not None and hasattr(feedback, "pushInfo"):
+                feedback.pushInfo(
+                    f"Could not transform {source_label} into the raster CRS; RegenGIS will use a safe in-coverage extent instead. "
+                    f"Details: {exc}"
+                )
+            return None
+        overlap = _intersection_with_layer_extent(transformed, layer_extent)
+        if _extent_is_usable(transformed) and overlap is None and feedback is not None and hasattr(feedback, "pushInfo"):
+            feedback.pushInfo(
+                f"The {source_label} does not overlap the input raster, so RegenGIS will use the full input raster extent."
+            )
+        return overlap
 
     if canvas is not None:
         canvas_extent = canvas.extent() if hasattr(canvas, "extent") else None
         if _extent_is_usable(canvas_extent):
             map_settings = canvas.mapSettings() if hasattr(canvas, "mapSettings") else None
             canvas_crs = map_settings.destinationCrs() if map_settings is not None and hasattr(map_settings, "destinationCrs") else None
-            try:
-                extent_in_layer_crs = _transform_extent(canvas_extent, canvas_crs, layer.crs())
-            except Exception as exc:
-                if feedback is not None and hasattr(feedback, "pushInfo"):
-                    feedback.pushInfo(
-                        "Could not transform current map extent into the raster CRS, so RegenGIS will try the stored project map extent next. "
-                        f"Details: {exc}"
-                    )
-            else:
-                if _extent_is_usable(extent_in_layer_crs):
-                    return extent_in_layer_crs
+            overlap = safe_candidate(canvas_extent, canvas_crs, "current map extent")
+            if overlap is not None:
+                return overlap
 
     project_extent, project_extent_crs = _parse_project_mapcanvas_extent()
     if _extent_is_usable(project_extent):
-        try:
-            extent_in_layer_crs = _transform_extent(project_extent, project_extent_crs, layer.crs())
-        except Exception as exc:
+        overlap = safe_candidate(project_extent, project_extent_crs, "stored project map extent")
+        if overlap is not None:
             if feedback is not None and hasattr(feedback, "pushInfo"):
-                feedback.pushInfo(
-                    "Could not transform the stored project map extent into the raster CRS, so RegenGIS will fall back to the full layer extent. "
-                    f"Details: {exc}"
-                )
-            return None
-        if feedback is not None and hasattr(feedback, "pushInfo"):
-            feedback.pushInfo("Using the stored map extent from the current QGIS project for headless processing.")
-        return extent_in_layer_crs if _extent_is_usable(extent_in_layer_crs) else None
+                feedback.pushInfo("Using the stored map extent from the current QGIS project for headless processing.")
+            return overlap
 
-    return None
+    if feedback is not None and hasattr(feedback, "pushInfo"):
+        feedback.pushInfo("No usable in-coverage map extent was available, so RegenGIS is using the full input raster extent.")
+    return layer_extent if _extent_is_usable(layer_extent) else None
 
 
 def _resolve_materialization_extent(layer, requested_extent=None, requested_extent_crs=None, feedback=None):

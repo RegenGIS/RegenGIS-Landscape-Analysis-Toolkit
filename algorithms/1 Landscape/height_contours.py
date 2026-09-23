@@ -40,6 +40,9 @@ class HeightContours(QgsProcessingAlgorithm):
             raise ValueError('Input raster layer is required.')
 
         input_crs = input_layer.crs()
+        interval = parameters['desired_height_distance_between_contours_m']
+        if interval is None or float(interval) <= 0:
+            raise ValueError('Contour interval must be greater than zero.')
         working_extent = _current_map_extent_in_layer_crs(input_layer, feedback=feedback)
         if working_extent is not None:
             if hasattr(feedback, 'pushInfo'):
@@ -95,7 +98,10 @@ class HeightContours(QgsProcessingAlgorithm):
             'OUTPUT': parameters['Height_contours']
         }
         outputs['Contour'] = processing.run('gdal:contour', alg_params, context=context, feedback=feedback)
-        results['Height_contours'] = outputs['Contour']['OUTPUT']
+        # Preserve the declared destination as the provider result.  Returning
+        # a child temporary id can make Desktop report no output even when the
+        # GDAL writer successfully wrote the requested file.
+        results['Height_contours'] = parameters['Height_contours']
         return results
 
     def name(self):

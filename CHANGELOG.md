@@ -2,6 +2,13 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## 0.4
+- Verified functional Processing output and GUI behavior in QGIS 3.44 and QGIS 4.2.
+- Added QGIS 4-safe analysis extent handling to prevent empty output rasters outside the input coverage.
+- Fixed GRASS batch execution in the regression runtime and strengthened raster-output checks to reject NoData-only results.
+- Corrected Height Contours output handling in QGIS 4 and the TWI completion layer name.
+- Raised the declared minimum QGIS version to 3.44, the earliest runtime verified for this release.
+
 ## 0.3
 - Bumped plugin version to 0.3 for the updated release package.
 - Community join link points to the direct RegenGIS account registration page.

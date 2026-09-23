@@ -17,6 +17,7 @@ from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterDateTime
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
+from qgis.core import QgsProcessingUtils
 import processing
 
 
@@ -102,7 +103,7 @@ class SolarRadiation(QgsProcessingAlgorithm):
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterDateTime('date', 'Date', type=QgsProcessingParameterDateTime.Type.Date, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('digital_surface_model_dsm_or_digital_terrain_model_dtm', 'Digital Surface Model (DSM) or Digital Terrain Model (DTM)', defaultValue=None))
-        self.addParameter(QgsProcessingParameterRasterDestination('Shade_intensity', 'Shade intensity', optional=True, createByDefault=True, defaultValue=None))
+        self.addParameter(QgsProcessingParameterRasterDestination('Shade_intensity', 'Shade intensity', optional=False, createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Solar_hours', 'Solar hours', createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Aspect', 'Aspect', createByDefault=True, defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Slope', 'Slope', createByDefault=True, defaultValue=None))
@@ -214,6 +215,10 @@ class SolarRadiation(QgsProcessingAlgorithm):
         )
 
         # r.sun.insoltime
+        # Explicit file outputs are required: QGIS can return a GRASS temp
+        # filename even when the child cleanup removes that file immediately.
+        grass_glob_rad = QgsProcessingUtils.generateTempFilename('regengis_glob_rad_grass.tif')
+        grass_insol_time = QgsProcessingUtils.generateTempFilename('regengis_insol_time_grass.tif')
         alg_params = {
             '-m': False,
             '-p': False,
@@ -241,8 +246,8 @@ class SolarRadiation(QgsProcessingAlgorithm):
             'slope': outputs['GrassSlope'],
             'slope_value': 0,
             'step': 0.5,
-            'glob_rad': QgsProcessing.TEMPORARY_OUTPUT,
-            'insol_time': QgsProcessing.TEMPORARY_OUTPUT
+            'glob_rad': grass_glob_rad,
+            'insol_time': grass_insol_time
         }
         outputs['Rsuninsoltime'] = processing.run('grass:r.sun.insoltime', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
         results['Shade_intensity'] = _translate_raster_to_input_crs(

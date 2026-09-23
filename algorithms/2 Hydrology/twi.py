@@ -11,6 +11,8 @@ from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
+from qgis.core import QgsProcessingContext
+from qgis.core import QgsProcessingUtils
 import processing
 
 
@@ -18,6 +20,26 @@ def _current_map_extent_in_layer_crs(layer, feedback=None):
     from regengis_processing_plugin.autocrs.prepare import _current_map_extent_in_layer_crs as helper
 
     return helper(layer, feedback=feedback)
+
+
+def _set_layer_name_on_completion(context, output_path, layer_name):
+    """Set the display name for the declared final output in QGIS 3 and 4."""
+    if not output_path or context is None:
+        return
+    try:
+        details = context.layerToLoadOnCompletionDetails(output_path)
+    except Exception:
+        details = None
+    if details is None:
+        try:
+            details = QgsProcessingContext.LayerDetails(layer_name, None, '')
+        except Exception:
+            return
+    details.name = layer_name
+    try:
+        context.addLayerToLoadOnCompletion(output_path, details)
+    except Exception:
+        return
 
 
 class TopographicWetnessIndex(QgsProcessingAlgorithm):
@@ -79,16 +101,40 @@ class TopographicWetnessIndex(QgsProcessingAlgorithm):
             return {}
 
         # r.topidx
+        # Use an explicit file so the GRASS child cannot return a nominal
+        # temporary path which disappears before materialization.
+        grass_output = QgsProcessingUtils.generateTempFilename('regengis_twi_grass.tif')
         alg_params = {
             'GRASS_RASTER_FORMAT_META': None,
             'GRASS_RASTER_FORMAT_OPT': None,
             'GRASS_REGION_CELLSIZE_PARAMETER': 0,
             'GRASS_REGION_PARAMETER': working_extent,
             'input': outputs['FillNodata']['OUTPUT'],
-            'output': parameters['TopographicWetnessIndexTwi']
+            'output': grass_output
         }
         outputs['Rtopidx'] = processing.run('grass:r.topidx', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-        results['TopographicWetnessIndexTwi'] = outputs['Rtopidx']['output']
+        # Register before the final GDAL child starts. Its default completion
+        # label is "Converted"; QGIS uses an existing parent completion entry
+        # when loading the declared final destination.
+        final_output = self.parameterAsOutputLayer(parameters, 'TopographicWetnessIndexTwi', context)
+        _set_layer_name_on_completion(context, final_output, 'TWI')
+        results['TopographicWetnessIndexTwi'] = processing.run(
+            'gdal:translate',
+            {
+                'COPY_SUBDATASETS': False,
+                'DATA_TYPE': 0,
+                'EXTRA': '',
+                'INPUT': outputs['Rtopidx']['output'],
+                'NODATA': None,
+                'OPTIONS': '',
+                'OUTPUT': parameters['TopographicWetnessIndexTwi'],
+                'TARGET_CRS': input_crs,
+            },
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
+        )['OUTPUT']
+        _set_layer_name_on_completion(context, results['TopographicWetnessIndexTwi'], 'TWI')
         return results
 
     def name(self):
