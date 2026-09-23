@@ -34,7 +34,8 @@ def _load_status_path() -> Path:
             if isinstance(settings_path, (str, os.PathLike)) and settings_path:
                 return Path(settings_path) / "regengis-load-status.json"
         except Exception:
-            pass
+            # QGIS profile discovery is optional; fall back to the plugin path.
+            return LOAD_STATUS_PATH
     return LOAD_STATUS_PATH
 
 
@@ -50,7 +51,7 @@ def _write_load_status(**payload) -> None:
         status_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     except Exception:
         # Diagnostics must never block QGIS startup.
-        pass
+        return
 
 # Defensive workaround for installations where GDAL_DATA exists but PROJ_LIB is
 # missing, which can leave child GDAL processes unable to find proj.db.

@@ -44,4 +44,6 @@ PUBLISHING_CHECKLIST.md
 .pytest_cache/
 .pytest_cache/**
 tests/
-scripts/
+scripts/*
+!scripts/build_zip.sh
+!scripts/run_bandit.sh
