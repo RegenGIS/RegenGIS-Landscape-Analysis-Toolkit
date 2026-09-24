@@ -22,11 +22,9 @@ if [[ ! -f "$METADATA" ]]; then
   exit 1
 fi
 
-# Mandatory pre-release security gate. This uses uv and a pinned Bandit version,
-# scans only publishable source paths, and fails on ANY finding (all severity and
-# confidence levels) before packaging. Keep this fail-closed and do not weaken
-# it with --exit-zero or severity/confidence filters.
-"$ROOT/scripts/run_bandit.sh"
+# Mandatory pre-release security and quality gate. It is deliberately invoked
+# directly so a fresh checkout does not depend on shell configuration.
+"$ROOT/scripts/qgis_release_preflight.sh" --source
 
 get_field() {
   local key="$1"
@@ -96,6 +94,7 @@ if command -v rsync >/dev/null 2>&1; then
     --exclude='dist/**' \
     --exclude='screenshot.png' \
     --exclude='screenshot.png.b64' \
+    --exclude='*.png' \
     --exclude='venv' \
     --exclude='venv/**' \
     --exclude='.venv' \
@@ -132,7 +131,7 @@ exclude_files = {
     'headless_test_harness.py', 'qgis_startup.py', 'qgis_gui_autoload.py',
     '.qgis-load-status.json',
 }
-exclude_globs = ('*.pyc', '*.pyo', '*.pyd', '*.zip', '*.tar.gz', '*.tgz', 'test_*.py')
+exclude_globs = ('*.pyc', '*.pyo', '*.pyd', '*.zip', '*.tar.gz', '*.tgz', '*.png', 'test_*.py')
 
 for path in root.rglob('*'):
     rel = path.relative_to(root)
@@ -158,9 +157,9 @@ import stat
 import sys
 
 root = Path(sys.argv[1])
-for path in root.rglob('*.py'):
-    mode = path.stat().st_mode
-    path.chmod(mode & ~(stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
+for path in root.rglob('*'):
+    if path.is_file():
+        path.chmod(0o644)
 PY
 
 # Build the zip from inside the staging dir so its root is PLUGIN_DIR/.
@@ -185,6 +184,10 @@ with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.write(path, arcname)
 PY
 fi
+
+# Validate the exact rebuilt artifact, including package structure, permissions,
+# file-analysis rules, approval metadata, and public-link reachability.
+"$ROOT/scripts/qgis_release_preflight.sh" --zip="$OUT"
 
 # macOS and Linux stat differ; pick the right flag.
 if SIZE=$(stat -f%z "$OUT" 2>/dev/null); then :; else SIZE=$(stat -c%s "$OUT"); fi

@@ -47,3 +47,4 @@ tests/
 scripts/*
 !scripts/build_zip.sh
 !scripts/run_bandit.sh
+!scripts/qgis_release_preflight.sh

@@ -55,6 +55,7 @@ def _write_load_status(**payload) -> None:
 
 # Defensive workaround for installations where GDAL_DATA exists but PROJ_LIB is
 # missing, which can leave child GDAL processes unable to find proj.db.
+
 ensure_proj_runtime_env()
 
 

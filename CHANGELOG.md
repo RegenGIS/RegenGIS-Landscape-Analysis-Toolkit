@@ -2,6 +2,10 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## 0.5
+- Prepared a new upload package after the blocked 0.4 scan result; the release preflight now runs Bandit, detect-secrets, Flake8, package file analysis and approval-link checks.
+- Excluded development tooling, diagnostics and binary assets from the upload ZIP.
+
 ## 0.4
 - Verified functional Processing output and GUI behavior in QGIS 3.44 and QGIS 4.2.
 - Added QGIS 4-safe analysis extent handling to prevent empty output rasters outside the input coverage.
