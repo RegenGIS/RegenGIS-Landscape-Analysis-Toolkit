@@ -94,7 +94,6 @@ if command -v rsync >/dev/null 2>&1; then
     --exclude='dist/**' \
     --exclude='screenshot.png' \
     --exclude='screenshot.png.b64' \
-    --exclude='*.png' \
     --exclude='venv' \
     --exclude='venv/**' \
     --exclude='.venv' \
@@ -131,7 +130,7 @@ exclude_files = {
     'headless_test_harness.py', 'qgis_startup.py', 'qgis_gui_autoload.py',
     '.qgis-load-status.json',
 }
-exclude_globs = ('*.pyc', '*.pyo', '*.pyd', '*.zip', '*.tar.gz', '*.tgz', '*.png', 'test_*.py')
+exclude_globs = ('*.pyc', '*.pyo', '*.pyd', '*.zip', '*.tar.gz', '*.tgz', 'test_*.py')
 
 for path in root.rglob('*'):
     rel = path.relative_to(root)

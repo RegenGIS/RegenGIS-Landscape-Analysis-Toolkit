@@ -67,6 +67,8 @@ with zipfile.ZipFile(zip_path) as zf:
     forbidden_parts = ("__pycache__", ".git", "scripts/", "tests/", "test/", "dist/", ".pytest_cache", ".scan-venv", ".hermes", ".autocrs-cache")
     forbidden_names = {"qgis_startup.py", "qgis_gui_autoload.py", ".qgis-load-status.json", "headless_test_harness.py", "test_headless_harness.py", "test_headless_integration.py", "test_plugin_provider_fallback.py"}
     binary_ext = {".pyc", ".pyo", ".pyd", ".so", ".dll", ".dylib", ".exe", ".bin", ".zip", ".tar", ".gz", ".tgz", ".7z", ".rar", ".sqlite", ".db"}
+    allowed_pngs = {f"{root}/icon.png", f"{root}/logo_regengis.png"}
+    png_signature = b"\x89PNG\r\n\x1a\n"
     private_key = re.compile(r"(^|/)(id_rsa|id_dsa|id_ecdsa|id_ed25519|.*\.pem|.*\.key)$", re.I)
     failures = []
     for info in infos:
@@ -84,17 +86,23 @@ with zipfile.ZipFile(zip_path) as zf:
             failures.append(f"hidden file: {name}")
         if any(token in name for token in forbidden_parts) or Path(rel).name in forbidden_names:
             failures.append(f"development/local artifact: {name}")
+        is_allowed_png = name in allowed_pngs
         if Path(rel).suffix.lower() in binary_ext or private_key.search(rel):
             failures.append(f"binary/private-key/archive type: {name}")
         if not name.endswith('/'):
             data = zf.read(name)
-            if b'\x00' in data:
+            if Path(rel).suffix.lower() == ".png":
+                if not is_allowed_png or not name.startswith(root + '/') or data[:8] != png_signature:
+                    failures.append(f"unapproved or invalid PNG asset: {name}")
+            elif b'\x00' in data:
                 failures.append(f"binary content: {name}")
     if failures:
         print("\n".join(failures), file=sys.stderr)
         raise SystemExit(f"ZIP file analysis failed with {len(failures)} issue(s)")
     metadata = zf.read(f"{root}/metadata.txt").decode("utf-8")
     fields = dict(line.split('=', 1) for line in metadata.splitlines() if '=' in line and not line.startswith('#'))
+    if fields.get("icon") != "icon.png" or f"{root}/icon.png" not in names:
+        raise SystemExit("metadata icon=icon.png and root icon.png package entry are required")
     version = fields.get("version", "")
     if not re.fullmatch(r"\d+\.\d+(?:\.\d+)?", version):
         raise SystemExit(f"metadata version is not semver-like: {version!r}")

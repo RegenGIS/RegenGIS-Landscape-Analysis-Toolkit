@@ -1,11 +1,12 @@
 [general]
 name=RegenGIS Landscape Analysis Toolkit - for Regenerative Land Design
-qgisMinimumVersion=3.44
+qgisMinimumVersion=3.4
 # Explicitly support QGIS 4. Without this, QGIS derives a 3.99 ceiling.
 qgisMaximumVersion=4.99
 changelog=CHANGELOG.md
 description=This plugin gives access to spatial analysis tools that support Regenerative Land Design such as agroforestry, permaculture and food forests.
 version=0.5
+icon=icon.png
 author=RegenGIS.com
 email=info@regengis.com
 license=MPL-2.0
